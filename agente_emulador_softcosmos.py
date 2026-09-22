@@ -24,6 +24,8 @@ import time
 import argparse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+import threading
+from urllib.request import Request, urlopen
 
 # Bibliotecas nativas do Windows via ctypes (Zero dependencias obrigatorias)
 IS_WINDOWS = sys.platform == 'win32'
@@ -71,7 +73,9 @@ CONFIG_PADRAO = {
     "tempo_espera_impressao_ms": 300,          # Tempo antes de clicar em imprimir
     "metodo_emulacao": "auto",                 # "auto", "win32_background" ou "teclado_focado"
     "restaurar_foco_apos_impressao": True,     # Nao rouba o foco do operador, devolve imediatamente
-    "atalho_impressao": "ENTER"                # Tecla ou botao usado para imprimir no formulario
+    "atalho_impressao": "ENTER",               # Tecla ou botao usado para imprimir no formulario
+    "fila_nuvem_url": "",                      # URL do seu servidor na nuvem (ex: https://meuservidor.com/api/fila-etiquetas)
+    "fila_intervalo_segundos": 2.0             # Intervalo de verificacao caso use servidor externo na nuvem
 }
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config_emulador.json")
@@ -666,6 +670,40 @@ def modo_inspetor():
         if len(controles) > 20:
             print(f"      ... e mais {len(controles) - 20} controles.")
 
+def loop_consumidor_fila_nuvem():
+    """
+    Thread em segundo plano que consulta um servidor na nuvem (se configurado)
+    buscando etiquetas pendentes para imprimir. Permite que servidores externos
+    (AWS, Vercel, VPS) pecam impressao sem precisar de IP fixo nem portas abertas!
+    """
+    url_fila = CONFIG.get("fila_nuvem_url", "").strip()
+    if not url_fila:
+        return
+
+    intervalo = float(CONFIG.get("fila_intervalo_segundos", 2.0))
+    print(f"[FILA NUVEM] Monitorando etiquetas pendentes em: {url_fila} (a cada {intervalo}s)")
+
+    while True:
+        try:
+            req = Request(url_fila, headers={'User-Agent': 'AgenteSoftCosmos/1.0'})
+            with urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    corpo = resp.read().decode('utf-8')
+                    dados = json.loads(corpo)
+                    # Formato aceito: {"codigo": "123", "copias": 1} ou lista de itens
+                    itens = dados if isinstance(dados, list) else ([dados] if dados.get("codigo") else [])
+                    for item in itens:
+                        cod = item.get("codigo") or item.get("ean") or item.get("termo")
+                        copias = int(item.get("copias", 1))
+                        if cod:
+                            print(f"[FILA NUVEM] Recebida solicitacao para codigo {cod} ({copias}x)...")
+                            sucesso, msg = executar_emulacao_etiqueta(cod, copias)
+                            print(f"[FILA NUVEM] Impressao concluida: {msg}")
+        except Exception as e:
+            # Silencioso se for erro temporario de conexao ou sem itens
+            pass
+        time.sleep(intervalo)
+
 def main():
     parser = argparse.ArgumentParser(description="Agente de Emulacao SoftCosmos para Conferencia de Etiquetas")
     parser.add_argument("--porta", type=int, default=CONFIG.get("porta_api", 3333), help="Porta HTTP da API (padrao: 3333)")
@@ -686,12 +724,20 @@ def main():
 
     porta = args.porta
     servidor = HTTPServer(('0.0.0.0', porta), RequisicaoHandler)
+
+    # Inicia a thread de monitoramento de fila externa (se configurada)
+    if CONFIG.get("fila_nuvem_url"):
+        t_fila = threading.Thread(target=loop_consumidor_fila_nuvem, daemon=True)
+        t_fila.start()
+
     print("=" * 75)
     print("AGENTE EMULADOR SOFTCOSMOS - CONFERENCIA & ETIQUETAS")
     print("=" * 75)
     print(f"-> Servidor rodando em: http://localhost:{porta}")
     print(f"-> Painel de Testes Web: http://localhost:{porta}/")
     print(f"-> Endpoint de Impressao: GET http://localhost:{porta}/imprimir/SEU_CODIGO")
+    if CONFIG.get("fila_nuvem_url"):
+        print(f"-> Fila em Nuvem Ativa: {CONFIG.get('fila_nuvem_url')}")
     print(f"-> Status do ERP: http://localhost:{porta}/status")
     print("-> Pressione CTRL+C para encerrar o agente.")
     print("=" * 75)
