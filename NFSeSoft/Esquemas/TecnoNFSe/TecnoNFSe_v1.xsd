@@ -1,0 +1,640 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <xs:element name="TecnoNFSe">
+        <xs:complexType>
+            <xs:sequence>
+
+                <xs:element name="IdLote" type="xs:string" minOccurs="0"/>
+                <xs:element name="NumeroLote" type="xs:string" minOccurs="0"/>
+                <xs:element name="CpfCnpjRemetente" type="xs:string" minOccurs="0"/>
+                <xs:element name="InscricaoMunicipalRemetente" type="xs:string" minOccurs="0"/>
+                <xs:element name="RazaoSocialRemetente" type="xs:string" minOccurs="0"/>
+                <xs:element name="QuantidadeRps" type="xs:string" minOccurs="0"/>
+                <xs:element name="CodigoCidadeRemetente" type="xs:string" minOccurs="0"/>
+                <xs:element name="Transacao" type="xs:string" minOccurs="0"/>
+                <xs:element name="DataInicio" type="xs:string" minOccurs="0"/>
+                <xs:element name="DataFim" type="xs:string" minOccurs="0"/>
+                <xs:element name="Versao" type="xs:string" minOccurs="0"/>
+                <xs:element name="MetodoEnvio" type="xs:string" minOccurs="0"/>
+                <xs:element name="ValorTotalServicos" type="xs:string" minOccurs="0"/>
+                <xs:element name="ValorTotalDeducoes" type="xs:string" minOccurs="0"/>
+                <xs:element name="ValorTotalBaseCalculo" type="xs:string" minOccurs="0"/>
+                <xs:element name="ValorTotalIss" type="xs:string" minOccurs="0"/>
+                <xs:element name="ValorTotalTributos" type="xs:string" minOccurs="0"/>
+                <xs:element name="ValorTotalIssRetido" type="xs:string" minOccurs="0"/>
+
+                <xs:element name="Rps" minOccurs="1" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="IdRps" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroRps" type="xs:string" minOccurs="0"/>
+                            <xs:element name="SerieRps" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoRps" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DataEmissao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="OptanteSimplesNacional" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DataAdesaoSimplesNacional" type="xs:string" minOccurs="0"/>
+                            <xs:element name="IncentivadorCultural" type="xs:string" minOccurs="0"/>
+                            <xs:element name="SituacaoNota" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoTributacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NaturezaTributacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NaturezaOperacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RegimeApuracaoTributaria" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RegimeEspecialTributacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroRpsSubstituido" type="xs:string" minOccurs="0"/>
+                            <xs:element name="SerieRpsSubstituido" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoRpsSubstituido" type="xs:string" minOccurs="0"/>
+                             <xs:element name="DataPagamento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoEmitente" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCidadeEmitente" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="ValorServicos" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorServicosIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorDeducoes" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorPis" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorCofins" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorInss" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorIr" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorCsll" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorCpp" type="xs:string" minOccurs="0"/>
+                            <xs:element name="IssRetido" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorIss" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTTS" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorIssRetido" type="xs:string" minOccurs="0"/>
+                            <xs:element name="OutrasRetencoes" type="xs:string" minOccurs="0"/>
+                            <xs:element name="IrrfIndenizacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BaseCalculo" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BaseCalculoIbsCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="IbsMunicipal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="IbsEstadual" type="xs:string" minOccurs="0"/>
+                            <xs:element name="IbsFederal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorIbsEstadual" type="xs:string" minOccurs="0"/>
+                            <xs:element name="Cbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorLiquidoNfse" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorMulta" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorJuros" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorIPI" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorIbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorBCPisCofins" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTotalTribFed" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTotalTribEst" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTotalTribMun" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorPercTotalTribFed" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorPercTotalTribEst" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorPercTotalTribMun" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorPercAliqSN" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorPercDeducoes" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="DescontoIncondicionado" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescontoCondicionado" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaISS" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaPIS" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaCOFINS" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaINSS" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaIR" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaCSLL" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaCPP" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaIBS" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaCBS" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RetidoPis" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RetidoCofins" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RetidoIr" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RetidoInss" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RetidoCsll" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RetidoCpp" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BaseCalculoINSS" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="TipoRetIss" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoRetPisCofins" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="TipoCST" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="CodigoItemListaServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoServicoNacional" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PrestacaoSus" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCnae" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoTributacaoMunicipio" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DiscriminacaoServico" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="ValorCargaTributaria" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PercentualCargaTributaria" type="xs:string" minOccurs="0"/>
+                            <xs:element name="FonteCargaTributaria" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="ValorCargaTributariaMunicipal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PercentualCargaTributMunicipal" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="ValorCargaTributariaEstadual" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PercentualCargaTributEstadual" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="CodigoCidadePrestacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoPaisServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PaisPrestacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EstadoPrestacaoServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CEPPrestacaoServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescricaoCidadePrestacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="UfCidadePrestacao" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="UfPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CpfCnpjPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="InscricaoMunicipalPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroCAEPFPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RazaoSocialPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DDDPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TelefonePrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CepPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EnderecoPrestador" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="CpfCnpjTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroCAEPFTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NifTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoNifTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="MotivoNaoNifTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RazaoSocialTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NomeFantasiaTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NomeResponsavelTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="OptanteSimplesNacionalTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="InscricaoMunicipalTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="InscricaoEstadualTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DocTomadorEstrangeiro" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoLogradouroTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EnderecoTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EnderecoInformado" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ComplementoTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoBairroTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BairroTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCidadeTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescricaoCidadeTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RegiaoTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="UfTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CepTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DDDTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TelefoneTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoTelefoneTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EmailTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DataNascimentoTomador" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="RazaoSocialIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CpfCnpjIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroCAEPFIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NifIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="MotivoNaoNifIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="InscricaoMunicipalIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="InscricaoEstadualIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCidadeIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ExteriorIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EnderecoIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ComplementoIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BairroIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CepIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="UFIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PaisIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TelefoneIntermediario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EmailIntermediario" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="ChaveNfseSubstituida" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodMotivoNfseSubstituida" type="xs:string" minOccurs="0"/>
+                            <xs:element name="MotivoNfseSubstituida" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroNfseSubstituida" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DataEmissaoNfseSubstituida" type="xs:string" minOccurs="0"/>
+                            <xs:element name="SeriePrestacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="MotCancelamento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="Operacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCEI" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="NomeObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoLogradouroObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EnderecoObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BairroObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ComplementoObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCidadeObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="OpcaoObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="InfObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescricaoCidadeObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RegiaoObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="UfObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CepObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoEnderecoObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PaisObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescricaoPaisObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="Art" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ReformaCivil" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NCM" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoInscImobFisc" type="xs:string" minOccurs="0"/>
+                            <xs:element name="InscricaoImobiliariaObra" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoObraImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="InscricaoFiscalImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EnderecoImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="LogradouroImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroEncapsulamento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ComplementoImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BairroImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CepImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCidadeImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescricaoCidadeImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="UfImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoPaisImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EstadoProvinciaImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoPostalImovel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RegiaoImovel" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="NumeroBeneficioMunicipal" type="xs:string" minOccurs="0" />   
+                            <xs:element name="ValorReducaoBCBM" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorPercReducaoBCBM" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="DeducaoPor" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoDeducao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CpfCnpjReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroNFReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DocReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoVerificacaoReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DataEmissaoReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCidadeReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTotalReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTotalRecebido" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorDeducao" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="NifFornecedorReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoPaisReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroNfeReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="UfNfeReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ChaveAcessoNfeReferencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="OutroDocumentoReferencia" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="PercentualDeduzir" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescricaoRPS" type="xs:string" minOccurs="0"/>
+                            <xs:element name="QuantidadeServicos" type="xs:string" minOccurs="0"/>
+                            <xs:element name="quantidade" type="xs:string" minOccurs="0"/>
+                            <xs:element name="UnidadeServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="unidade" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorUnitarioServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="Tributavel" type="xs:string" minOccurs="0"/>
+                            <xs:element name="IdentificadorSistemaLegado" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoCodificacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="Assinatura" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumEmissorRps" type="xs:string" minOccurs="0" />
+                            <xs:element name="TipoDocumentoTomador" type="xs:string" minOccurs="0" />
+                            <xs:element name="DescricaoDocumentoTomador" type="xs:string" minOccurs="0" />
+                            <xs:element name="CidadeEstrangeiraTomador" type="xs:string" minOccurs="0" />
+                            <xs:element name="PaisTomador" type="xs:string" minOccurs="0" />
+                            <xs:element name="CodigoSubItemListaServico" type="xs:string" minOccurs="0" />
+                            <xs:element name="JustificativaDeducao" type="xs:string" minOccurs="0" />
+                            <xs:element name="ValorIssServico" type="xs:string" minOccurs="0" />
+                            <xs:element name="ExigibilidadeISS" type="xs:string" minOccurs="0" />
+                            <xs:element name="TipoImunidade" type="xs:string" minOccurs="0" />
+                            <xs:element name="NumeroProcessoSuspensao" type="xs:string" minOccurs="0" />
+                            
+                            <xs:element name="MunicipioIncidencia" type="xs:string" minOccurs="0" />
+                            <xs:element name="IncentivoFiscal" type="xs:string" minOccurs="0" />
+                            <xs:element name="InformacoesComplementares" type="xs:string" minOccurs="0" />
+                            <xs:element name="Competencia" type="xs:string" minOccurs="0" />
+                            <xs:element name="CodigoPais" type="xs:string" minOccurs="0" />
+                            <xs:element name="ResponsavelRetencao" type="xs:string" minOccurs="0" />
+                            <xs:element name="NumeroNfse" type="xs:string" minOccurs="0" />
+                            <xs:element name="SerieNfse" type="xs:string" minOccurs="0" />
+                            <xs:element name="DataEmissaoNfse" type="xs:string" minOccurs="0" />
+                            <xs:element name="TipoLogradouroPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ComplementoPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BairroPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCidadePrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EmailPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="InscricaoEstadualPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoBairroPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescricaoCidadePrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NomeFantasiaPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaSimplesNacional" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroNFSeCancelada" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DataEmissaoNFSeCancelada" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EnderecoPrestacaoServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DataVencimento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="SituacaoTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="OutrasInformacoes" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PlugNotas" type="xs:boolean" minOccurs="0"/>
+                            <xs:element name="AliquotaServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorServicosItem" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BaseCalculoServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorDeducoesServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescontoCondicionadoServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescontoIncondicionadoServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValTotTributos" type="xs:string" minOccurs="0"/>
+                            <xs:element name="SituacaoTributariaPISCOFINS" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BaseCalculoCOFINS" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BaseCalculoPIS" type="xs:string" minOccurs="0"/>
+                            <xs:element name="SituacaoTributaria" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ReceitaBruta" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AnexoSimplesNacional" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DataVigencia" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorAproximadoTributoMunicipal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorAproximadoTributoFederal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTotalPis" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTotalCofins" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTotalCsll" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTotalInss" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTotalIr" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorRepasse" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="CodigoNbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoContribuinte" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoModoPrestacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoVinculoPrestacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoMoedaEstrangeira" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorServicosEstrangeiro" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoFomentoPrestador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoFomentoTomador" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoMovimentacaoBens" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroDeclaracaoImp" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroRegistroExp" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoMDIC" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CategoriaServico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoObjeto" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ExtensaoObjeto" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroPostes" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoVeiculoCobranca" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoRodagem" type="xs:string" minOccurs="0"/>
+                            <xs:element name="SentidoGeografico" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroEixos" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PlacaVeiculo" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoAcessoPedido" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoContratoPedido" type="xs:string" minOccurs="0"/>
+                            <xs:element name="numeroItemPedido" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="IdDocTec" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="AtividadeEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="IdentificacaoEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DataInicioEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DataFinalEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescricaoEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CepEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCidadeEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NomeCidadeServEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="UFEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PaisEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BairroEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoPostalEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EstadoProvinciaEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EnderecoEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="LogradouroEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ComplementoEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ExteriorEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CidadeExteriorEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EstadoEvento" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RegiaoEvento" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="FinalidadeNFSe" type="xs:string" minOccurs="0"/>
+                            <xs:element name="OperacaoPessoal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoOperacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoOperacao" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TipoEnteGovernamental" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescTipoEnteGovernamental" type="xs:string" minOccurs="0"/>
+                            <xs:element name="IndicadorDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoEstrangeiroDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CpfCnpjDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="InscricaoMunicipalDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="InscricaoEstadualDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NifDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="MotivoNaoNifDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RazaoSocialDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCidadeDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CepDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PaisDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoPostalDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="DescricaoCidadeDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EstadoProvinciaDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="UfDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="RegiaoDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EnderecoDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="NumeroDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ComplementoDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="BairroDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="EmailDestinatario" type="xs:string" minOccurs="0"/>
+                            <xs:element name="TelefoneDestinatario" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="ClassificacaoTributariaIbsCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ClassifTributariaRegularIbsCbs" type="xs:string" minOccurs="0"/>
+                                                        
+                            <xs:element name="ValorBaseIbsCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaIbsEstadual" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PercReducaoIbsEstadual" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaEfetivaIbsEstadual" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaIbsMunicipal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PercReducaoIbsMunicipal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaEfetivaIbsMunicipal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PercReducaoCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaEfetivaCbs" type="xs:string" minOccurs="0"/>    
+
+                            <xs:element name="ValorTotalNfIbsCbs" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="ValorIbsTotal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PercCredPresumidoIbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorCredPresumidoIbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorDifIbsEstadual" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorDifIbsMunicipal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorIbsMunicipal" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="PercCredPresumidoCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorCredPresumidoCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorDifCbs" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="AliquotaEfetivaRegIbsEstadual" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTribRegIbsEstadual" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaEfetivaRegIbsMunicipal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTribRegIbsMunicipal" type="xs:string" minOccurs="0"/>
+                            <xs:element name="AliquotaEfetivaRegCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorTribRegCbs" type="xs:string" minOccurs="0"/>
+                            
+                            <xs:element name="IbsEstadualCompraGov" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorIbsEstadualCompraGov" type="xs:string" minOccurs="0"/>
+                            <xs:element name="IbsMunicipalCompraGov" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorIbsMunicipalCompraGov" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CbsCompraGov" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorCbsCompraGov" type="xs:string" minOccurs="0"/>
+                                                                                
+                            <xs:element name="SituacaoTributariaRegularIbsCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="CodigoCreditoPresumidoIbsCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="SituacaoTributariaIbsCbs" type="xs:string" minOccurs="0"/>
+                            <xs:element name="MunicipioIncidenciaIbsCbs" type="xs:string" minOccurs="0" />
+                            <xs:element name="CodigoMunicipioIncidencia" type="xs:string" minOccurs="0" />                            
+                            
+                            <xs:element name="CodigoCIB" type="xs:string" minOccurs="0"/>
+                            <xs:element name="PagamentoParceladoAntecipado" type="xs:string" minOccurs="0"/>
+                            <xs:element name="ValorPercDiferimentoMunicipal" type="xs:string" minOccurs="0" />
+                            <xs:element name="ValorPercDiferimentoEstadual" type="xs:string" minOccurs="0" />
+                            <xs:element name="ValorPercDiferimentoCbs" type="xs:string" minOccurs="0" />
+                            <xs:element name="ValorPercReducaoCompraGov" type="xs:string" minOccurs="0" />
+                            <xs:element name="PercReducaoCompraGov" type="xs:string" minOccurs="0" />    
+                            <xs:element name="QuantidadeLocacao" type="xs:string" minOccurs="0" />
+                            <xs:element name="DescricaoLocacao" type="xs:string" minOccurs="0" />
+                            
+                            <xs:element name="Servico" minOccurs="1" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="DiscriminacaoServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="QuantidadeServicos" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="quantidade" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="UnidadeServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="unidade" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorUnitarioServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorServicos" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorLiquidoServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="Tributavel" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="CodigoItemListaServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="CodigoCnae" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="TipoDeducao" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="IssRetidoServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorIss" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorPIS" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorInss" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorIr" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorCP" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorCOFINS" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorCSLL" type="xs:string" minOccurs="0"/>                         
+                                        <xs:element name="CodigoCidadePrestacao" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="AliquotaServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="AliquotaISS" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="AliquotaINSS" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="AliquotaPIS" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="AliquotaCOFINS" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="AliquotaCSLL" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="AliquotaIR" type="xs:string" minOccurs="0"/>                      
+                                        <xs:element name="AliquotaIssRetidoServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="BaseCalculo" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorIssRetido" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorServicosItem" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="BaseCalculoServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorDeducoesServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DescontoCondicionadoServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DescontoIncondicionadoServico" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValTotTributos" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="JustificativaDeducao" type="xs:string" minOccurs="0" />
+                                        <xs:element name="ValorDeducoes" type="xs:string" minOccurs="0" />
+                                        <xs:element name="TipoTributacao" type="xs:string" minOccurs="0" />
+                                        <xs:element name="SituacaoTributaria" type="xs:string" minOccurs="0" />
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                            <xs:element name="FormaPagamento" minOccurs="1" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="TipoPagamento" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="TipoPagamentoPadrao" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="QuantidadeParcelas" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="Parcela" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DataVencimentoParcela" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorParcela" type="xs:string" minOccurs="0"/>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                            <xs:element name="Deducao" minOccurs="1" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="DeducaoPor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="TipoDeducao" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="JustificativaDeducao" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="CpfCnpjReferencia" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="NumeroNFReferencia" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="CodigoVerificacaoReferencia" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DataEmissaoReferencia" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="CodigoCidadeReferencia" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorTotalReferencia" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="PercentualDeduzir" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorDeducao" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="NifFornecedorReferencia" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="CodigoPaisReferencia" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="NumeroNfeReferencia" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="UfNfeReferencia" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ChaveAcessoNfeReferencia" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="OutroDocumentoReferencia" type="xs:string" minOccurs="0"/>
+										
+                                        <xs:element name="ChaveNFSeDeducoes" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ChaveNFeDeducoes" type="xs:string" minOccurs="0"/>
+                                        
+                                        <xs:element name="CodigoCidadeNFSe" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="NumeroNFSeDeducoes" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="CodigoVerificacaoDeducoes" type="xs:string" minOccurs="0"/>
+                                        
+                                        <xs:element name="ModeloNFSeDeducoes" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="SerieNFSeDeducoes" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="IdentificadorDocFiscal" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="IdentificadorDoc" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="TipoDeducaoReducao" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DescricaoOutrasDeducoes" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DataDocDeducoes" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorTotalDoc" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorDeducoesDoc" type="xs:string" minOccurs="0"/>
+                                        
+                                        <xs:element name="CpfCnpjFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="NifFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="CodigoNifFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="NumeroCAEPFFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="InscricaoMunicipalFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="RazaoSocialFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DocFornecedorEstrangeiro" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="CodigoCidadeFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="CepFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="PaisFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DescricaoCidadeFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="RegiaoFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="EnderecoFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="NumeroFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ComplementoFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="BairroFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="TelefoneFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="EmailFornecedor" type="xs:string" minOccurs="0"/>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                            <xs:element name="Despesa" minOccurs="1" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="NumeroDespesa" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DescricaoDespesa" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DataDespesa" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorDespesa" type="xs:string" minOccurs="0"/>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>    
+                            <xs:element name="Referencia" minOccurs="1" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="ChaveNFSe" type="xs:string" minOccurs="0"/>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                            <xs:element name="DocumentoReferenciado" minOccurs="1" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="TipoChaveDF" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DescricaoTipoChaveDFe" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ChaveDFe" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="MunicipioDocumentoFiscal" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="NumeroDocumentoFiscal" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DescricaoDocumentoFiscal" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="NumeroDocumentoNaoFiscal" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DescricaoDocumentoNaoFiscal" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="CpfCnpjFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="NifFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="MotivoNaoNifFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="RazaoSocialFornecedor" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DataEmissaoDedutivel" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DataCompetenciaDedutivel" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="TipoValorDedutivel" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="DescricaoValorDedutivel" type="xs:string" minOccurs="0"/>
+                                        <xs:element name="ValorDedutivel" type="xs:string" minOccurs="0"/>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>     
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

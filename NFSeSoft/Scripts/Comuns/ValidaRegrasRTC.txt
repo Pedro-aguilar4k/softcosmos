@@ -1,0 +1,174 @@
+{Função para não permitir que o percentual de tributos ou percentual do simples não seja enviado. }
+
+function Validar_ExclusividadeTributosOuSimples: Boolean;
+var
+  vFed, vEst, vMun, vSN: String;
+  temGrupoTributos, temSN: Boolean;
+begin
+  Result := True;
+
+  vFed := CampoTecno('ValorPercTotalTribFed');
+  vEst := CampoTecno('ValorPercTotalTribEst');
+  vMun := CampoTecno('ValorPercTotalTribMun');
+  vSN  := CampoTecno('ValorPercAliqSN');
+
+  temGrupoTributos :=
+     not VerificaVazioOuZero(vFed) or
+     not VerificaVazioOuZero(vEst) or
+     not VerificaVazioOuZero(vMun);
+
+  temSN := not VerificaVazioOuZero(vSN);
+
+  // Não pode misturar
+  if temSN and temGrupoTributos then
+     RaiseException('Regra inválida: ValorPercAliqSN não pode coexistir com os percentuais de tributos.');
+
+  // Se nada foi informado, assume tributos zerados
+  if (not temSN) and (not temGrupoTributos) then
+  begin
+     vFed := '0';
+     vEst := '0';
+     vMun := '0';
+  end;
+
+  // Caso Simples
+  if temSN then
+  begin
+     SetarCampoCurrency('ValorPercAliqSN', False);
+     Exit;
+  end;
+
+  // Caso Tributos (informados ou defaultados)
+  if VerificaVazioOuZero(vFed) then vFed := '0';
+  if VerificaVazioOuZero(vEst) then vEst := '0';
+  if VerificaVazioOuZero(vMun) then vMun := '0';
+
+  SetarCampoValor('ValorPercTotalTribFed', vFed);
+  SetarCampoValor('ValorPercTotalTribEst', vEst);
+  SetarCampoValor('ValorPercTotalTribMun', vMun);
+
+  SetarCampoCurrency('ValorPercTotalTribFed', False);
+  SetarCampoCurrency('ValorPercTotalTribEst', False);
+  SetarCampoCurrency('ValorPercTotalTribMun', False);
+end;
+
+
+
+{Função para não permitir que o TipoCST seja enviado vazio. No caso de envio de valores ou alíquotas de PIS/COFINS, o TipoCST é obrigatório.}
+
+function Validar_ObrigatoriedadeTipoCSTQuandoHaPisCofins: Boolean;
+var
+  temPisCofins: Integer;
+  vCST: String;
+begin
+  Result := True;
+
+  temPisCofins :=
+       Ord(not VerificaVazioOuZero(CampoTecno('ValorCofins'))) +
+       Ord(not VerificaVazioOuZero(CampoTecno('ValorPIS'))) +
+       Ord(not VerificaVazioOuZero(CampoTecno('AliquotaCOFINS'))) +
+       Ord(not VerificaVazioOuZero(CampoTecno('AliquotaPIS')));
+
+  if temPisCofins = 0 then Exit;
+
+  vCST := CampoTecno('TipoCST');
+
+  if VerificaVazioOuZero(vCST) then
+     RaiseException('Se valores ou alíquotas de PIS/COFINS forem informados, o campo TipoCST é obrigatório.');
+
+  VerificaSeEhNumero('TipoCST', vCST);
+
+  if Length(vCST) <> 2 then
+     vCST := PreencheZerosEsquerda(vCST, 2);
+
+  SetarCampoValorTamanho('TipoCST', vCST, 2);
+end;
+
+
+{Função para não permitir que o bloco de IBS/CBS seja enviado incompleto. No caso de envio de qualquer uma das 3 tags, todas são obrigatórias.}
+
+function Validar_BlocoIbsCbsCompleto: Boolean;
+var
+  temSituacao, temClassificacao, temMunicipio: Integer;
+  valorMunicipio: String;
+begin
+  temSituacao      := Ord(not VerificaVazioOuZero(CampoTecno('SituacaoTributariaIbsCbs')));
+  temClassificacao := Ord(not VerificaVazioOuZero(CampoTecno('ClassificacaoTributariaIbsCbs')));
+  temMunicipio     := Ord(not VerificaVazioOuZero(CampoTecno('MunicipioIncidenciaIbsCbs')));
+
+  if (temSituacao + temClassificacao + temMunicipio) = 0 then Exit;
+
+  if temSituacao = 0 then
+     RaiseException('Campo SituacaoTributariaIbsCbs é obrigatório quando há informações de IBS/CBS.');
+
+  if temClassificacao = 0 then
+     RaiseException('Campo ClassificacaoTributariaIbsCbs é obrigatório quando há informações de IBS/CBS.');
+
+  if temMunicipio = 1 then
+     valorMunicipio := CampoTecno('MunicipioIncidenciaIbsCbs')
+  else
+  begin
+     valorMunicipio := CampoTecno('MunicipioIncidencia');
+
+     if VerificaVazioOuZero(valorMunicipio) then
+        RaiseException('Campo MunicipioIncidenciaIbsCbs é obrigatório e não foi possível obter valor de MunicipioIncidencia.');
+  end;
+  SetarCampoValorTamanho('SituacaoTributariaIbsCbs', PreencheZerosEsquerda(CampoTecno('SituacaoTributariaIbsCbs'), 3), 3);
+  SetarCampoValorTamanho('ClassificacaoTributariaIbsCbs', PreencheZerosEsquerda(CampoTecno('ClassificacaoTributariaIbsCbs'), 6), 6);
+
+  VerificaSeEhNumero('MunicipioIncidenciaIbsCbs', valorMunicipio);
+  SetarCampoValorTamanho('MunicipioIncidenciaIbsCbs', valorMunicipio, 7);
+end;
+
+
+
+function Validar_GrupoObrigatorioCamposNFSeIBSCBS: Boolean;
+var
+  finalidade, operacao, indicador, codigo: String;
+  temAlgum: Boolean;
+begin
+  Result := True;
+
+  finalidade := CampoTecno('FinalidadeNFSe');
+  operacao   := CampoTecno('OperacaoPessoal');
+  indicador  := CampoTecno('IndicadorDestinatario');
+  codigo     := CampoTecno('CodigoOperacao');
+   
+   if finalidade = '' then
+     finalidade := '0';
+
+  temAlgum :=
+     (finalidade <> '') or
+     (operacao   <> '') or
+     (indicador  <> '') or
+     (codigo     <> '');
+
+  if finalidade = '' then
+     finalidade := '0';
+
+  SetarCampoValorTamanho('FinalidadeNFSe', finalidade, 1);
+
+  if not temAlgum then Exit;
+
+  if operacao = '' then
+     operacao   := '0';
+
+  if not AnsiMatchText(operacao, ['0','1']) then
+     RaiseException('OperacaoPessoal deve ser 0 ou 1.');
+
+  SetarCampoValorTamanho('OperacaoPessoal', operacao, 1);
+
+  if indicador = '' then
+     RaiseException('IndicadorDestinatario é obrigatório quando há informações de finalidade/operação.');
+
+  if not AnsiMatchText(indicador, ['0','1','2','3','4']) then
+     RaiseException('IndicadorDestinatario deve ser 0, 1, 2, 3, 4.');
+
+  SetarCampoValorTamanho('IndicadorDestinatario', indicador, 1);
+
+  if codigo = '' then
+     RaiseException('CodigoOperacao é obrigatório quando há informações de finalidade/operação de IBS/CBS.');
+
+  VerificaSeEhNumero('CodigoOperacao', codigo);
+  SetarCampoValorTamanho('CodigoOperacao', codigo, 6);
+end;

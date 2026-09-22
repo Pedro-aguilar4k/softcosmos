@@ -1,0 +1,433 @@
+  procedure VerificaTamanho(const aValor, aCampo: String; const aQtd: Integer);
+  begin
+    if Length(aValor) > aQtd then
+      RaiseException('Valor do campo: ' + aCampo + ' foi excedido, valor máximo aceito: ' + IntToStr(aQtd));
+  end;
+
+  function Campo(const aDS: TDataSet; const aNomeCampo: string): TField;
+  begin
+    if aDS = nil then
+      RaiseException('Dataset "' + aDS.Name + '" não encontrado');
+    // Resultar numa excecao adequada quando um campo não for encontrado (evitar AVs)
+    Result := aDS.FindField(aNomeCampo);
+    if Result = nil then
+      RaiseException('Dataset "' + aDS.Name + '": Campo não encontrado: "' +
+        aNomeCampo + '".');
+  end;
+
+  function PreencheZerosEsquerda(aString: string; aTamanhoDoCampo: integer): string;
+  var
+    i, vTam: integer;
+    vAux: string;
+  begin
+    vAux := aString;
+    vTam := length( aString );
+    aString := '';
+    for i := 1 to aTamanhoDoCampo - vTam do
+      aString := '0' + aString;
+    vAux := aString + vAux;
+    result := vAux;
+  end;
+  
+  function PreencheZerosDireita(aString: string; aTamanhoDoCampo: integer): string;
+  var
+    i, vTam: integer;
+    vAux: string;
+  begin
+    vAux := aString;
+    vTam := length( aString );
+    aString := '';
+    for i := 1 to aTamanhoDoCampo - vTam do
+      aString := '0' + aString;
+    vAux := vAux + aString;
+    result := vAux;
+  end;
+
+  function CampoTecno(const aCampo: string): string;
+  begin
+    Result := Trim(Campo(_DsTecnoAtual, aCampo).AsString);
+  end;
+  
+  procedure ValidaCampoVazio(const aCampo: String);
+  begin
+    if CampoTecno(aCampo) = '' then
+      RaiseException('Campo ' + aCampo + ' não foi informado. Esse campo é de uso obrigatório.');
+  end;
+
+  function CampoCidade(const aCampo: string): string;
+  begin
+    Result := Trim(Campo(_DsCidadeAtual, aCampo).AsString);
+  end;
+
+  procedure SetarCampo(const aCampo: string);
+  begin
+    // Campos com atribuicao direta: mesmo nome que no padrao TecnoNFSe
+    Campo(_DsCidadeAtual, aCampo).AsString := CampoTecno(aCampo);
+  end;
+
+  procedure SetarCampoValor(const aCampo, aValor: string);
+  begin
+    Campo(_DsCidadeAtual, aCampo).AsString := aValor;
+  end;
+  
+  function RemoverMascara(const aValor : String) : String;
+  begin
+    Result := StringReplace(aValor, '/', '', [rfReplaceAll, rfIgnoreCase]);
+    Result := StringReplace(Result, '-', '', [rfReplaceAll, rfIgnoreCase]);
+    Result := StringReplace(Result, '.', '', [rfReplaceAll, rfIgnoreCase]);
+    Result := StringReplace(Result, ',', '', [rfReplaceAll, rfIgnoreCase]);
+  end;
+
+  procedure SetarCampoCurrency(const aCampo: string; const SetarSeZero: boolean);
+  var _Valor: Currency;
+  begin
+    _Valor := 0;
+    try
+      _Valor := AnyCurrencyToCurrency(CampoTecno(aCampo));
+    except
+      RaiseException('Valor inválido para o campo: ' + aCampo);
+    end;
+    if ((_Valor <> 0) and (_Valor <> 0.00)) or SetarSeZero then
+      Campo(_DsCidadeAtual, aCampo).AsString :=
+        CurrencyToXsdCurrency(_Valor);
+  end;
+  
+  procedure VerificaSeEhNumero(const aNomeCampoTecno, aValor : string);
+  var
+    _ValorCampoInteiro : Int64;
+  begin
+    try
+      if aValor <> '' then
+        _ValorCampoInteiro := StrToInt64(Trim(aValor));
+    except
+      RaiseException('Valor inválido para o campo ' + aNomeCampoTecno + ', deve ser um número.');
+    end;
+  end;
+
+  procedure SetarCampoCurrencyValor(const aCampoTecno, aCampo: string; const SetarSeZero: boolean);
+  var _Valor: Currency;
+  begin
+    VerificaSeEhNumero(aCampoTecno, RemoverMascara(CampoTecno(aCampoTecno)));
+    _Valor := AnyCurrencyToCurrency(CampoTecno(aCampoTecno));
+    if (_Valor <> 0) or SetarSeZero then
+      Campo(_DsCidadeAtual, aCampo).AsString :=
+        CurrencyToXsdCurrency(_Valor);
+  end;
+  
+  procedure SetarCampoValorCurrency(const aCampo, aValor: string; const SetarSeZero: boolean);
+  var _Valor: Currency;
+  begin
+    VerificaSeEhNumero(aCampo, RemoverMascara(aValor));
+    _Valor := AnyCurrencyToCurrency(aValor);
+    if (_Valor <> 0) or SetarSeZero then
+      Campo(_DsCidadeAtual, aCampo).AsString :=
+        CurrencyToXsdCurrency(_Valor);
+  end;
+
+  // Seta no _DsCidadeAtual o aValor. CampoCpf ou CampoCnpj.
+  procedure SetarCampoCpfCnpj(const aNomeCampoCpf, aNomeCampoCnpj, aValor: string);
+  begin
+    case Length(aValor) of
+      14: SetarCampoValor(aNomeCampoCnpj, aValor);
+      11: SetarCampoValor(aNomeCampoCpf, aValor);
+    end;
+  end;
+
+  //Caso o DDD seja passado junto ao telefone, sera retirado e setado no campo DDD.
+  procedure SetarDDD(const aNomeCampoTecnoTel, aNomeCampoTel, aNomeCampoTecnoDDD, aNomeCampoDD : string);
+  var
+    _ValorCampo, _aux : string;
+  begin
+    _ValorCampo := Trim(CampoTecno(aNomeCampoTecnoTel));
+    case Length(_ValorCampo) of
+      8, 9: SetarCampoValor(aNomeCampoTel, _ValorCampo);
+      10:
+      begin
+        if CampoTecno(aNomeCampoTecnoDDD) = '' then
+        begin
+          _aux := copy(CampoTecno(aNomeCampoTecnoTel), 0, 2);
+          _ValorCampo := copy(CampoTecno(aNomeCampoTecnoTel), 3, Length(_ValorCampo));
+
+          SetarCampoValor(aNomeCampoTel, _ValorCampo);
+          SetarCampoValor(aNomeCampoDD, _aux);
+        end
+        else
+          SetarCampoValor(aNomeCampoTel, _ValorCampo);
+      end;
+      11:
+      begin
+        if CampoTecno(aNomeCampoTecnoDDD) = '' then
+        begin
+          _aux := copy(CampoTecno(aNomeCampoTecnoTel), 0, 1);
+          if _aux = '0' then
+          begin
+            _aux := copy(CampoTecno(aNomeCampoTecnoTel), 0, 3);
+            _ValorCampo := copy(CampoTecno(aNomeCampoTecnoTel), 4, Length(_ValorCampo));
+          end
+          else
+          begin
+            _aux := copy(CampoTecno(aNomeCampoTecnoTel), 0, 2);
+            _ValorCampo := copy(CampoTecno(aNomeCampoTecnoTel), 3, Length(_ValorCampo));
+          end;
+
+          SetarCampoValor(aNomeCampoTel, _ValorCampo);
+          SetarCampoValor(aNomeCampoDD, _aux);
+        end
+        else
+          SetarCampoValor(aNomeCampoTel, _ValorCampo);
+      end;
+      12:
+      begin
+        if CampoTecno(aNomeCampoTecnoDDD) = '' then
+        begin
+          _aux := copy(CampoTecno(aNomeCampoTecnoTel), 0, 1);
+          _aux := copy(CampoTecno(aNomeCampoTecnoTel), 0, 3);
+          _ValorCampo := copy(CampoTecno(aNomeCampoTecnoTel), 4, Length(_ValorCampo));
+
+          SetarCampoValor(aNomeCampoTel, _ValorCampo);
+          SetarCampoValor(aNomeCampoDD, _aux);
+        end
+        else
+          SetarCampoValor(aNomeCampoTel, _ValorCampo);
+      end
+	  else
+        RaiseException('Valor inválido para o campo: '+aNomeCampoTecnoTel);
+    end;
+  end;
+
+  procedure VerificaDDD(const aNomeCampoTecnoTel, aNomeCampoTel, aNomeCampoTecnoDDD: string);
+  var _ValorCampo : string;
+  begin
+    _ValorCampo := CampoTecno(aNomeCampoTecnoDDD);
+
+    if _ValorCampo <> '' then
+      _ValorCampo := _ValorCampo + CampoTecno(aNomeCampoTecnoTel)
+    else
+      _ValorCampo := CampoTecno(aNomeCampoTecnoTel);
+
+    SetarCampoValor(aNomeCampoTel, _ValorCampo);
+  end;
+
+  function PreencheComEspacos(const aValor: String; aTamanho: Integer): String;
+  var
+    _espacos, i : Integer;
+    _espacosVazio : String;
+  begin
+    if length(aValor) < aTamanho then
+    begin
+      _espacos := aTamanho - length(aValor);
+      for i := 0 to _espacos - 1 do
+      begin
+        _espacosVazio := '§' + _espacosVazio;
+      end;
+      Result := aValor + _espacosVazio;
+    end
+    else
+      Result := aValor;
+  end;
+
+  function PreencheComEspacosEsquerda(const aValor: String; aTamanho: Integer): String;
+  var
+    _espacos, i : Integer;
+    _espacosVazio : String;
+  begin
+    if length(aValor) < aTamanho then
+    begin
+      _espacos := aTamanho - length(aValor);
+      for i := 0 to _espacos - 1 do
+      begin
+        _espacosVazio := _espacosVazio + '§';
+      end;
+      Result := _espacosVazio + aValor;
+    end
+    else
+      Result := aValor;
+  end;
+  
+  procedure SetarCampoValorTamObrigRemessa(const aNomeCampoCidade, aCampoTecno: string; aTamanho: integer);//Arrumar para NomeRemessa
+  begin
+    if Length(CampoTecno(aCampoTecno)) > aTamanho then RaiseException('Para essa cidade o campo "' + aCampoTecno + '" não deve conter mais de ' + inttostr(aTamanho) + ' Caractere(s)');
+    if (CampoTecno(aCampoTecno) = '') then
+      RaiseException('Para essa cidade o campo "' + aCampoTecno + '" é obrigatório e deve conter até ' + inttostr(aTamanho) + ' Caractere(s)')
+    else if (Length(CampoTecno(aCampoTecno)) = aTamanho) then
+      SetarCampoValor(aNomeCampoCidade, CampoTecno(aCampoTecno))
+    else
+    begin
+      SetarCampoValor(aNomeCampoCidade, PreencheComEspacos(CampoTecno(aCampoTecno), aTamanho));
+    end;
+  end;
+
+  procedure SetarCampoValorTamanhoRemessa(const aNomeCampoCidade, aValor: string; aTamanho: integer);
+  begin
+  if Length(aValor) > aTamanho then RaiseException('O valor: "' + aValor + '" ultrapassou o limite de ' + inttostr(aTamanho) + ' Caractere(s)');
+    if (Length(aValor) = aTamanho) then
+      SetarCampoValor(aNomeCampoCidade, aValor)
+    else
+    begin
+      if aNomeCampoCidade = 'CPFCNPJTomador' then
+        SetarCampoValor(aNomeCampoCidade, PreencheComEspacosEsquerda(aValor, aTamanho))
+      else
+        SetarCampoValor(aNomeCampoCidade, PreencheComEspacos(aValor, aTamanho));
+    end;
+  end;
+
+  procedure SetarCurValorTamVirgRemessa(const aCampoTecno, aCampo: string; const aTamanho: Integer; const SetarSeZero: boolean);
+  //SetarCampoCurrencyValorTamanhoVirgulaRemessa
+  var _ValorCurrency: Currency;
+      _ValorCampo: string;
+  begin
+    _ValorCurrency := AnyCurrencyToCurrency(CampoTecno(aCampoTecno));
+    if (_ValorCurrency <> 0) or SetarSeZero then
+    begin
+      _ValorCampo := StringReplace(CurrencyToXsdCurrency(_ValorCurrency), '.', ',', [rfReplaceAll, rfIgnoreCase]);
+      _ValorCampo := PreencheZerosEsquerda(_ValorCampo, aTamanho + 3);
+      Campo(_DsCidadeAtual, aCampo).AsString := _ValorCampo
+    end;
+  end;
+
+  procedure SetarCampoValorTamanhoFixo(const aNomeCampoCidade, aValor, aCampoTecno: string; aTamanho: integer);
+  begin  
+    if (Length(aValor) = aTamanho) then
+      SetarCampoValor(aNomeCampoCidade, aValor)
+    else
+      RaiseException('Para essa cidade o campo "' + aCampoTecno + '" é obrigatório e deve conter: ' + inttostr(aTamanho) + ' caractere(s)');
+  end; 
+  
+  procedure SetarCampoTamanhoFixo(const aNomeCampoCidade, aValor, aCampoTecno: string; aTamanho: integer);
+  begin  
+    if (Length(aValor) = aTamanho) then
+      SetarCampoValor(aNomeCampoCidade, aValor)
+    else if aValor <> '' then
+      RaiseException('Para essa cidade o campo "' + aCampoTecno + '" é obrigatório e deve conter: ' + inttostr(aTamanho) + ' caractere(s)');
+  end; 
+  
+  procedure SetarCampoObrigatorioTamanho(const aNomeCampoTecno, aNomeCampoCidade: string; aMax: integer);
+  var
+    _Valor: string;
+  begin
+    _Valor := CampoTecno(aNomeCampoTecno);
+    if (CampoTecno(aNomeCampoTecno) <> '') and (Length(_Valor) <= aMax ) then
+    begin
+      SetarCampoValor(aNomeCampoCidade, Trim(_Valor));
+    end
+    else
+      RaiseException('Para essa cidade o campo "' + aNomeCampoTecno + '" é obrigatório e não deve ser Maior que ' + inttostr(aMax) + ' Caracteres');
+  end;
+  
+  procedure SetarCampoObrigatorioValorTamanho(const aNomeCampoCidade, aNomeCampoTecno, aValor: string; aMax: integer);
+  begin
+    if (aValor <> '') and (Length(aValor) <= aMax ) then
+      SetarCampoValor(aNomeCampoCidade, Trim(aValor))
+    else
+      RaiseException('Para essa cidade o campo referente a tag "' + aNomeCampoTecno + '" é obrigatório e não deve ser Maior que ' + inttostr(aMax) + ' Caracteres');
+  end;
+  
+  procedure SetarCampoTamanho(const aNomeCampoTecno, aNomeCampoCidade: string; aMax: integer);
+  var
+    _Valor: string;
+  begin
+    _Valor := CampoTecno(aNomeCampoTecno)
+    if Length(_Valor) <= aMax then
+    begin
+      SetarCampoValor(aNomeCampoCidade, Trim(_Valor));
+    end
+    else
+      RaiseException('Para essa cidade o campo "' + aNomeCampoTecno + '" não deve ser Maior que ' + inttostr(aMax) + ' Caracteres');
+  end;
+  
+  procedure SetarCampoTamanhoMinimo(const aNomeCampoTecno, aNomeCampoCidade: string; aMax, aMin: integer);
+  var
+    _Valor: string;
+  begin
+    _Valor := CampoTecno(aNomeCampoTecno)
+    if (Length(_Valor) <= aMax) and (Length(_Valor) >= aMin) then
+    begin
+      SetarCampoValor(aNomeCampoCidade, Trim(_Valor));
+    end
+    else
+      RaiseException('Para essa cidade o campo "' + aNomeCampoTecno + '" deve ter no Mínimo ' + inttostr(aMin) + ' e no Máximo ' + inttostr(aMax) + ' Caracteres');
+  end;
+  
+  procedure SetarCpfCnpj(const aNomeCpfCidade, aNomeCnpjCidade, aNomeCampoTecno, aValorCampo: string);
+  begin
+
+    VerificaSeEhNumero(aNomeCampoTecno, aValorCampo);
+
+    case Length(aValorCampo) of
+      11:
+      begin
+        if Params.Values['Cidade'] = 'FORTALEZA' then
+          SetarCampoObrigatorioValorTamanho(aNomeCnpjCidade, aNomeCampoTecno, 'CPF' + aValorCampo, 14)
+        else
+          SetarCampoObrigatorioValorTamanho(aNomeCpfCidade, aNomeCampoTecno, aValorCampo, 11);
+      end;
+      14: SetarCampoObrigatorioValorTamanho(aNomeCnpjCidade, aNomeCampoTecno, aValorCampo, 14);
+    else
+      RaiseException('Valor inválido para o campo ' + aNomeCampoTecno + ', CPF: 11 Caracteres; CNPJ: 14 Caracteres.');
+    end;
+  end;
+  
+  procedure SetarCampoValorTamanho(const aNomeCampoCidade, aValor: string; Max: integer);
+  begin
+    if Length(aValor) <= Max then
+      SetarCampoValor(aNomeCampoCidade, Trim(aValor))
+    else
+      RaiseException('Para essa cidade o campo referente a tag "' + aNomeCampoCidade + '" não deve ser Maior que ' + IntToStr(Max) + ' Caracteres');
+  end;
+  
+  procedure SetarTelefone(const aNomeCampoTecnoTel, aNomeCampoTel, aNomeCampoTecnoDDD: string);
+  var _ValorCampo : string;
+  begin
+    _ValorCampo := CampoTecno(aNomeCampoTecnoDDD);
+    VerificaSeEhNumero(aNomeCampoTecnoDDD, _ValorCampo);
+
+    if (_ValorCampo <> '') and (_ValorCampo <> '0') then
+      _ValorCampo := _ValorCampo + RemoverMascara(CampoTecno(aNomeCampoTecnoTel))
+    else
+      _ValorCampo := CampoTecno(aNomeCampoTecnoTel);
+
+    VerificaSeEhNumero(aNomeCampoTecnoTel, _ValorCampo);
+    SetarCampoValorTamanho(aNomeCampoTel, _ValorCampo, 12);
+  end;
+
+  procedure ValidaTamanhoMaximoObrigatorio(const aCampoTecno : String; const aQtd: Integer);
+  begin
+   if length(CampoTecno(aCampoTecno)) > aQtd then
+     RaiseException('Valor inválido para o campo: ' + aCampoTecno + ', Informe no máximo ' + IntToStr(aQtd) + ' caracteres.')
+   else if trim(CampoTecno(aCampoTecno)) = '' then
+     RaiseException('Campo: ' + aCampoTecno + ' é obrigatório.')
+  end;
+  
+  procedure SetarCampoValorTamanhoObrigatorio(const aNomeCampoCidade, aValor: string; Max: integer);
+  begin
+    if (Length(aValor) <= Max) and (Trim(aValor) <> '') then
+      SetarCampoValor(aNomeCampoCidade, Trim(aValor))
+    else
+      RaiseException('Para essa cidade o campo referente a tag "' + aNomeCampoCidade + '" é obrigatório e não deve ser Maior que ' + IntToStr(Max) + ' Caracteres');
+  end;
+  
+  procedure SetarCampoValorObrigatorio(const aNomeCampoCidade, aValor: string);
+  begin
+    if (Trim(aValor) <> '') then
+      SetarCampoValor(aNomeCampoCidade, Trim(aValor))
+    else
+      RaiseException('Para essa cidade o campo referente a tag "' + aNomeCampoCidade + '" é obrigatório.');
+  end;
+  
+  procedure SetarCampoValorServicoTamanhoObrig(const _DsAtual: TSpdXSDClientDataSet; aCampo, aValor: string; aMax: Integer; aObrig: boolean);
+  begin
+    if aObrig and (aValor = '') then
+      RaiseException('Para essa cidade o campo "' + aCampo + '" é obrigatório e não deve ser Maior que ' + inttostr(aMax) + ' Caracteres')
+    else if aObrig and (aValor <> '') then
+    begin
+      if length(aValor) <= aMax then
+        Campo(_DsAtual, aCampo).AsString := aValor
+      else
+        RaiseException('Para essa cidade o campo "' + aCampo + '" é obrigatório e não deve ser Maior que ' + inttostr(aMax) + ' Caracteres');
+    end
+    else if not aObrig and (aValor <> '') then
+    begin
+      if length(aValor) <= aMax then
+        Campo(_DsAtual, aCampo).AsString := aValor;
+    end;
+  end;

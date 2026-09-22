@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pedRegEvento xmlns="http://www.sped.fazenda.gov.br/nfse" versao="%s">
+  <infPedReg xmlns="http://www.sped.fazenda.gov.br/nfse" Id="PRE%s">
+    <tpAmb>%s</tpAmb>
+    <verAplic>%s</verAplic>
+    <dhEvento>%s</dhEvento>
+    <CNPJAutor>%s</CNPJAutor>
+    <chNFSe>%s</chNFSe>
+    %s
+  </infPedReg>
+</pedRegEvento>

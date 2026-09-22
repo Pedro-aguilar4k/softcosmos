@@ -1,0 +1,13 @@
+  { Arquivo criado para nao ter metodos duplicados nos scripts }
+  
+  function ContainsText(const aText: string; const aValues: array of string): Boolean;
+  var
+    _i: integer;
+  begin
+    Result := False;
+    for _i := 0 to Length(aValues) - 1 do
+    begin
+      if Pos(aValues[_i], aText) > 0 then
+        Result := True;     
+    end;
+  end;

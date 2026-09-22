@@ -1,0 +1,106 @@
+<?xml version='1.0' encoding='ISO-8859-1'?>
+<PEDIDOS>
+	<Pedido>
+		<PedidoID>122</PedidoID>
+		<ClienteID>1</ClienteID>
+		<DataHora>16/04/2009 18:40:40</DataHora>
+		<Local></Local>
+		<Pagto>Visa</Pagto>
+		<ValorTotal>160,00</ValorTotal>
+		<ValorSFrete>160,00</ValorSFrete>
+		<ValorFrete>0,00</ValorFrete>
+		<Frete>Frete grátis</Frete>
+		<ValeDesconto>0,00</ValeDesconto>
+		<Status>PAGAMENTO CONFIRMADO</Status>
+		<ClienteEntrega></ClienteEntrega>
+		<Parceiro></Parceiro>
+		<Casamento></Casamento>
+		<Desejo></Desejo>
+		<EntregaEndereco></EntregaEndereco>
+		<EntregaNumero></EntregaNumero>
+		<EntregaComplemento></EntregaComplemento>
+		<EntregaReferencia></EntregaReferencia>
+		<EntregaBairro></EntregaBairro>
+		<EntregaCidade></EntregaCidade>
+		<EntregaCEP></EntregaCEP>
+		<EntregaUF></EntregaUF>
+		<EntregaCodCidadeIBGE></EntregaCodCidadeIBGE>
+		<EntregaPais></EntregaPais>
+		<EntregaDDDTel></EntregaDDDTel>
+		<EntregaTelefone></EntregaTelefone>
+		<Rastreamento></Rastreamento>
+		<Vendedor></Vendedor>
+		<HISTORICOS>
+			<Historico>
+				<Tipo></Tipo>
+				<Descricao></Descricao>
+				<ExibirCli></ExibirCli>
+			</Historico>
+		</HISTORICOS>
+		<HISTORICOSSTATUS>
+			<HistoricoStatus>
+				<Status></Status>
+				<DataHora></DataHora>
+			</HistoricoStatus>
+		</HISTORICOSSTATUS>
+		<HISTORICOANTIFRAUDE>
+			<Descricao></Descricao>
+		</HISTORICOANTIFRAUDE>
+		<CLIENTE>
+			<ID>1</ID>
+			<CNPJCPF>02807150000137</CNPJCPF>
+			<Tipo></Tipo>
+			<NomeRazaoSocial>SOFTSYSTEM ENGENHARIA EM SOFTWARE LTDA - EPP</NomeRazaoSocial>
+			<NomeFantasia>SOFTSYSTEM</NomeFantasia>
+			<Contato></Contato>
+			<IERG>ISENTO</IERG>
+			<ProfRamo></ProfRamo>
+			<Endereco>CONDOMÍNIO SAN DIEGO</Endereco>
+			<Numero></Numero>
+			<Complemento>LOTE 01 SALA 112</Complemento>
+			<Referencia>CENTRO EMPRESARIAL JARDIM BOTÂNICO</Referencia>
+			<Bairro>JARDIM BOTÂNICO</Bairro>
+			<Cidade>BRASÍLIA</Cidade>
+			<CEP>71680362</CEP>
+			<UF>DF</UF>
+			<CodCidadeIBGE>5300108</CodCidadeIBGE>
+			<CodPais>1058</CodPais>
+			<Pais>BRASIL</Pais>
+			<Email>softsystem@softsystem.com.br</Email>
+			<DDDTel>61</DDDTel>
+			<Telefone>34274949</Telefone>
+			<RamalTel></RamalTel>
+			<DDDCel></DDDCel>
+			<Celular></Celular>
+			<Fax>34274918</Fax>
+			<CodSitFiscal></CodSitFiscal>
+			<NivelCadastro></NivelCadastro>
+			<CodAtividade></CodAtividade>
+			<CodArea></CodArea>
+		</CLIENTE>
+		<PEDIDOITENS>
+			<ITEM>
+				<Quantidade>1,00</Quantidade>
+				<Ref>100</Ref>
+				<Produto>TESTE</Produto>
+				<Status>PAGAMENTO CONFIRMADO</Status>
+				<ICMS>0,00</ICMS>
+				<Custo>0,00</Custo>
+				<Valor>160,00</Valor>
+				<ValorMedio>160,00</ValorMedio>
+				<ValorTotal>160,00</ValorTotal>
+			</ITEM>
+		</PEDIDOITENS>
+		<PEDIDOPARCELAS>
+			<PARCELA>
+				<Tipo>14</Tipo>
+				<Valor>160,00</Valor>
+				<DataVencimento>17/04/2009</DataVencimento>
+				<IdConfigBoleto></IdConfigBoleto>
+				<NumBoleto></NumBoleto>
+				<NossoNumero></NossoNumero>
+				<NumCheque></NumCheque>
+			</PARCELA>
+		</PEDIDOPARCELAS>
+	</Pedido>
+</PEDIDOS>

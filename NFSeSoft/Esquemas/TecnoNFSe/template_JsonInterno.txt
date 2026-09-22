@@ -1,0 +1,18 @@
+       {
+          "status" : "%s",
+          "motivo" : "%s",
+          "protocolo" : "%s",
+          "cnpj" : "%s",
+          "inscMunicipal" : "%s",
+          "numeroRps" : "%s",
+          "serieRps" : "%s",
+          "tipo" : "%s",
+          "numeroNFSe" : "%s",
+          "dataEmissaoNFSe" : "%s",
+          "codVerificacao" : "%s",
+          "situacao" : "%s",
+          "dataAutorizacao" : "%s",
+          "dataCancelamento" : "%s",
+          "chaveCancelamento" : "%s",
+          "xmlImpressao" : "%s"
+       }

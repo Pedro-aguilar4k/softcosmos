@@ -1,0 +1,37 @@
+{
+  Variaveis externas disponiveis:
+    Output: string;
+    Datasets: TspdXSDDataset;
+}
+
+  function InserirQuebrasDeLinha(const aXML: string): string;
+  begin
+    Result := StringReplace(aXML, '|', #10, [rfReplaceAll, rfIgnoreCase]);
+  end;
+
+  function RealizarDelimitacaoLoteDps(const aXML: string): string;
+  var
+    _DelimitadorRPS, _Xml: string;
+  begin
+    Result := aXML;
+    
+    _DelimitadorRPS := Params.Values['DelimitadorRPS'];
+    if _DelimitadorRPS = '' then
+      _DelimitadorRPS := Params.Values['Delimitador'];
+
+    if _DelimitadorRPS <> '' then
+    begin
+      Progress('Realizando a delimitacao do lote de RPS');
+      _Xml := XmlSelect(aXML, '//*[local-name()="DPS"]');
+      Result := _DelimitadorRps + _Xml + _DelimitadorRps;
+    end;
+  end;
+
+begin
+  Progress('Gerando arquivo XML.');
+  Output := Datasets.AsXML;
+  Output := InserirQuebrasDeLinha(Output);  
+  Output := RealizarDelimitacaoLoteDps(Output);
+
+  Progress('Arquivo XML gerado com sucesso.');
+end.

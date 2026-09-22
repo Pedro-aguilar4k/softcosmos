@@ -1,0 +1,25 @@
+procedure CarregarTX2;
+begin
+  if FileExists(Input) then
+    _Tx2.LoadFromFile(Input)
+  else
+    _Tx2.Text := Input;
+
+  if not SameText(_Tx2[0], 'formato=tx2') then
+    RaiseException('Formato inválido de arquivo/conteúdo TX2');
+
+  if Trim(_Tx2.Values['VersaoEsquema']) <> '' then
+    Params.Values['VersaoEsquema'] := _Tx2.Values['VersaoEsquema'];
+    
+  if Trim(Params.Values['Ambiente']) = '' then
+    Params.Values['Ambiente'] := _Tx2.Values['Ambiente'];
+    
+  _inicio := 0;
+  _PadraoTecnoNFSe := False;
+  while not EhComando( _Tx2[_inicio] ) do
+  begin
+    inc(_inicio);
+    if SameText(trim(_Tx2[_inicio]), 'padrao=TecnoNFSe') then
+      _PadraoTecnoNFSe := True;
+  end;
+end;

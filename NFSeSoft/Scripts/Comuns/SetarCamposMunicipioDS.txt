@@ -1,0 +1,75 @@
+
+procedure PosicionaRegistroRPS_DS(aRegistro : Integer);
+var
+ i : integer;
+begin
+
+  _DsCidadeAtual := Datasets.GetDataSetByName(DSCIDADE_NOTA);
+  _DsCidadeAtual.First;
+  for i := 1 to aRegistro do
+    _DsCidadeAtual.Next;
+
+end;
+
+procedure SetarCamposMunicipioDS(const aNomesDataSets: array of string);
+var
+  _i, j, _registro, _indexCampo: Integer;
+  _CampoPers, _NomeCampo, _ValorCampo, _aux : string;
+  _CamposMunicipioAux: TStringList;
+
+begin
+  _CamposMunicipioAux := TStringList.Create;
+  try
+    _CamposMunicipioAux.Text := _CamposMunicipio.Text;
+    
+    for _i := 0 to _CamposMunicipio.count -1 do
+    begin
+      _NomeCampo := _CamposMunicipio.Names[_i];
+      _ValorCampo := _CamposMunicipioAux.Values[_NomeCampo];
+      
+      if _ValorCampo <> '' then
+      begin
+        _aux := Copy(_NomeCampo, 0, Pos('@', _NomeCampo)-1);
+        _registro := StrToInt(_aux);
+        PosicionaRegistroRPS_DS(_registro);
+
+        _CampoPers := StringReplace(_NomeCampo, '@','',[rfReplaceAll]);
+        _CampoPers := StringReplace(_CampoPers, _aux,'',[rfReplaceAll]);
+
+        for j := 0 to (length(aNomesDataSets) -1) do
+        begin
+          _DsCidadeAtual := Datasets.GetDataSetByName(aNomesDataSets[j]);
+          _DsCidadeAtual.Edit;
+          
+          if _DsCidadeAtual.FindField(_CampoPers) <> nil then
+          begin
+            SetarCampoValor(_CampoPers, _ValorCampo);
+            
+            _indexCampo := _CamposMunicipioAux.IndexOfName(_NomeCampo);
+            _CamposMunicipioAux.Delete(_indexCampo);
+            
+            break;
+          end;
+          
+          _DsCidadeAtual.Post;
+        end;
+      end
+      else if (Pos('INCLUIR', UpperCase(_CamposMunicipio[_i])) > 0) then
+      begin
+        for j := 0 to (length(aNomesDataSets) -1) do
+        begin
+          _DsCidadeAtual := Datasets.GetDataSetByName(aNomesDataSets[j]);
+          
+          if (Pos(UpperCase(aNomesDataSets[j]), UpperCase(_CamposMunicipio[_i])) > 0) then
+          begin  
+            _DsCidadeAtual.Append;
+            _DsCidadeAtual.Post;
+            Break;
+          end;
+        end;
+      end;
+    end;
+  finally
+    _CamposMunicipioAux.Free;
+  end;
+end;

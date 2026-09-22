@@ -1,0 +1,28 @@
+SET TERM ^ ;
+
+create or alter procedure SP_PRODUTOSIMAGENS_BLOB
+returns (
+    CODPRODUTO integer,
+    CODIMAGEM integer,
+    IMAGEM blob sub_type 0 segment size 1024)
+as
+begin
+  for execute statement('select CODPROD, FOTO from PRODIMG
+                         where FOTO is not null')
+      on external DATA SOURCE 'localhost:C:\Softsystem\BANCODADOS.GDB' as user 'SYSDBA' password 'masterkey'
+      into :CODPRODUTO, :IMAGEM
+  do
+  begin
+    CODIMAGEM = coalesce((select max(CODIMAGEM) from PRODUTOSIMAGENS), 0) + 1;
+    insert into PRODUTOSIMAGENS (CODPRODUTO, CODIMAGEM)
+    values (:CODPRODUTO, :CODIMAGEM);
+    suspend;
+  end
+
+  if (CODIMAGEM > 0) then
+    update NOVOORC
+    set IMAGEM = :CODIMAGEM
+    where LOJA is not null;
+end^
+
+SET TERM ; ^

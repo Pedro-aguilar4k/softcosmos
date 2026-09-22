@@ -1,0 +1,11 @@
+{$I ..\Comuns\PopularTecnoNFSeDS.txt}
+{$I ..\Comuns\ValidaTamanhoCamposTecnoNFSe.txt}
+
+procedure PrepararTecnoNFSeDatasets;
+begin
+  TecnoNFSeDS.ConfigSection := 'EnviarTecnoNFSe';
+  TecnoNFSeDS.MappingFileName := _PastaTecnoNFSe + 'MappingTecnoNFSe.txt';
+  TecnoNFSeDS.CreateXSDDataset;
+  PopularTecnoNFSeDS;
+  ValidaTamanhoCamposTecnoNFSe;
+end;

@@ -1,0 +1,122 @@
+{$I ..\Comuns\Utilitarios.txt}
+
+  function UnindentXml(const aXml: string): string;
+  var
+    _sl: TStringList;
+    i: integer;
+  begin
+    _sl := TStringList.Create;
+    _sl.Text := aXml;
+    for i:= 0 to _sl.Count-1 do
+      _sl[i] := Trim(_sl[i]);
+    Result := StringReplace(_sl.Text, #13#10, '', [rfReplaceAll]);
+    _sl.Free;
+  end;
+  
+  function EscapeXml(const aXML: string): string;
+  begin
+    // "Desescapar" o XML
+    Result:= aXML;
+    Result:= StringReplace(Result, '&apos;', '''', [rfReplaceAll]);
+    Result:= StringReplace(Result, '&quot;', '"',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&amp;lt;br&amp;gt;',   '<br>',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&amp;',   '&',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&gt;',   '>',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&lt;',   '<',  [rfReplaceAll]);
+    Result:= StringReplace(Result, ';',  '\delimiter',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&gt\delimiter', '&gt;',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&lt\delimiter', '&lt;',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&amp\delimiter', '&amp;',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&quot\delimiter', '&quot;',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&apos\delimiter', '&apos;',  [rfReplaceAll]);
+    
+    Result:= StringReplace(Result, '<br>', '&lt;br&gt;',[rfReplaceAll]);
+    Result:= StringReplace(Result, '&', '&amp;', [rfreplaceall]);
+    Result:= StringReplace(Result, '&amp;amp;', '&amp;', [rfreplaceall]);
+    Result:= StringReplace(Result, '&amp;gt;', '&gt;', [rfreplaceall]);
+    Result:= StringReplace(Result, '&amp;lt;', '&lt;', [rfreplaceall]);
+    Result:= StringReplace(Result, '<?xml version="1.0" encoding="utf-8"?>', '', [rfReplaceAll]);
+  end;
+  
+  function GetValueTagXml(aTag, aTxt: String): String;
+  var
+    _PINI, _PFIN: integer;
+  begin
+    _PINI := Pos('<' + aTag + '>', aTxt) + (Length(aTag) + 2);
+    _PFIN := Pos('</' + aTag + '>', aTxt);
+    Result := Copy(aTxt, _PINI, _PFIN - _PINI);
+  end;
+  
+  function TratarDiscriminacao(const aXml: String): String;
+  var
+    _Discriminacao, _Xml: string;
+  begin
+    Result := aXml;
+    
+    _Discriminacao := GetValueTagXml('Discriminacao', aXml);    
+    if Trim(_Discriminacao) <> '' then
+    begin
+      _Xml := StringReplace(aXml, _Discriminacao, '####DISCRIMINACAO####', [rfReplaceAll]);
+      
+      _Discriminacao := StringReplace(_Discriminacao, '<', '&amp;lt\delimiter', [rfReplaceAll]);
+      _Discriminacao := StringReplace(_Discriminacao, '>', '&amp;gt\delimiter', [rfReplaceAll]);
+      
+      Result := StringReplace(_Xml, '####DISCRIMINACAO####', _Discriminacao, [rfReplaceAll]);
+    end;
+  end;
+
+   //Funcao para ordem dos Campos do Params
+  function CreateFieldsResponseFalha : TStringList;
+  begin
+    Result := TStringList.Create;
+    Result.Add('Status');
+    Result.Add('Motivo');
+    Result.Add('WorkFlow');
+  end;
+  
+  //Funcao que passa o valor a lista de resultado
+  procedure AddValueListFields(const aParamName, aValue: string; aListFields: TStringList);
+  begin
+    if aListFields.IndexOf(aParamName) > -1 then
+      aListFields[aListFields.IndexOf(aParamName)] := aValue;
+  end;
+
+  //Funcao que formata a lista em resposta, considerando DelimitadorDoCampo
+  function FormatLineResult(aListFields: TStringList) : string;
+  var
+    i : integer;
+  begin
+    Result := '';
+    for i := 0 to aListFields.Count - 1 do
+      Result := Result + aListFields[i] + Params.Values['DelimitadorDoCampo']
+  end;
+
+  function GetMotivo: string;
+  var
+    _Xml: string;
+  begin
+    if Params.Values['faultstring'] <> '' then
+    begin
+      Result := 'Falha na comunicação com WebService-' + Input;
+    end
+    else if Params.Values['XmlErro'] <> '' then
+    begin
+      _Xml := Params.Values['XmlErro'];
+      Result := Format3('%s-%s (%s)', GetValueTagXml('Codigo', _Xml),
+                                      GetValueTagXml('Descricao', _Xml),
+                                      '');      
+    end;
+    
+    if Trim(Result) = '' then
+    begin
+      if Params.Values['XmlVazio'] = 'True' then
+        Result := 'Falha na comunicação com WebService - XML Vazio.';
+    end;
+  end;
+
+  function GetWorkFlow(const aMotivo: string): string;
+  begin
+    Result := 'WF000';
+    if Trim(aMotivo) <> '' then
+      Result := 'WF004';
+  end;

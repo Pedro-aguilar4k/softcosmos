@@ -1,0 +1,252 @@
+  function UnEscapeXml(const aXML: string): string;
+  begin
+    // "Desescapar" o XML
+    Result:= aXML;
+    Result:= StringReplace(Result, '&apos;', '''', [rfReplaceAll]);
+    Result:= StringReplace(Result, '&quot;', '"',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&amp;lt;br&amp;gt;',   '<br>',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&gt;',   '>',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&lt;',   '<',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&amp;',   '&',  [rfReplaceAll]);
+    Result:= StringReplace(Result, ';',  '\delimiter',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&gt\delimiter', '&gt;',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&lt\delimiter', '&lt;',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&amp\delimiter', '&amp;',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&quot\delimiter', '&quot;',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&apos\delimiter', '&apos;',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '<br>', '&lt;br&gt;',  [rfReplaceAll]);
+    // Eliminar os Enters
+    Result := StringReplace(Result, #10, '', [rfReplaceAll]); // CR
+    Result := StringReplace(Result, #13, '', [rfReplaceAll]); // LF
+  end;
+
+  Function GetValueTag(aTag, aTxt: String): String;
+  Var
+    _PINI, _PFIN: integer;
+  begin
+    _PINI := Pos('<' + aTag + '>', aTxt) + (Length(aTag) + 2);
+    _PFIN := Pos('</' + aTag + '>', aTxt);
+    Result := Copy(aTxt, _PINI, _PFIN - _PINI);
+  end;
+
+  function VerificaVazioOuZero(const aValor : string): boolean;
+  begin
+    if aValor <> '' then
+      aValor := StringReplace(aValor, ',', '.', [rfReplaceAll, rfIgnoreCase]);
+    if AnsiMatchText(aValor, ['','0','0.0','0.00','0.000','0.0000']) then
+      Result := True
+    else
+      Result := False;
+  end;
+
+  //Depois da correção de trocar o & por &amp;, é necessário voltar os caracteres próprios do XML.
+  function CorrigeXml(const aXML: string): string;
+  begin
+    Result := aXML;
+    Result:= StringReplace(Result, '&amp;apos;', '&apos;', [rfReplaceAll]);
+    Result:= StringReplace(Result, '&amp;quot;', '&quot;',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&amp;#39', '&#39',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&amp;lt;', '&lt;',  [rfReplaceAll]);
+    Result:= StringReplace(Result, '&amp;gt;', '&gt;',  [rfReplaceAll]);
+    //WebIss retorna a quebra de linha da forma abaixo.
+    Result:= StringReplace(Result, '&amp;#xD;', '&#xD;',  [rfReplaceAll]);
+  end;
+
+  function RemoverZerosEsquerda(const Value: string): string;
+  var
+    i: Integer;
+  begin
+    for i := 1 to Length(Value) do
+      if Value[i]<>'0' then
+      begin
+        Result := Copy(Value, i, MaxInt);
+        exit;
+      end;
+    Result := '';
+  end;
+
+  function AdicionarZerosEsquerda(aString: string; aTamanhoDoCampo: integer): string;
+  var
+    i, vTam: integer;
+    vAux: string;
+  begin
+    vAux := aString;
+    vTam := length( aString );
+    aString := '';
+    for i := 1 to aTamanhoDoCampo - vTam do
+      aString := '0' + aString;
+    vAux := aString + vAux;
+    result := vAux;
+  end;
+
+  function FormataCurrency(const aCampo: string): string;
+  var _Valor: Currency;
+  begin
+    _Valor := 0;
+
+    try
+      _Valor := AnyCurrencyToCurrency(aCampo);
+    except
+      RaiseException('Valor inválido para o campo: ' + aCampo);
+    end;
+
+    if ((_Valor <> 0) and (_Valor <> 0.00)) then
+      Result := CurrencyToXsdCurrency(_Valor);
+  end;
+
+  function RemoverAcentos(const aValor: string): string;
+  var
+    _StringAcentos : String;
+    _StringSemAcentos : String;
+    _TAcentos : TStringList;
+    _TSemAcentos : TStringList;
+    _i : Integer;
+  begin
+    Result := aValor;
+    _TAcentos := TStringList.create;
+    _TSemAcentos := TStringList.create;
+    try
+      _StringAcentos := 'áéíóúàèìòùâêîôûäëïöüãõñçýÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÄËÏÖÜÃÕÑÇÝºª°§'; 
+      _StringSemAcentos := 'aeiouaeiouaeiouaeiouaoncyAEIOUAEIOUAEIOUAEIOUAONCYoas';
+      for _i := 0 to length(_StringAcentos) do
+      begin
+        _TAcentos.Add(copy(_StringAcentos, _i, 1));
+        _TSemAcentos.Add(copy(_StringSemAcentos, _i, 1));
+      end;
+
+      for _i := 0 to _TAcentos.Count-1 do
+      begin
+        if pos(_TAcentos[_i], aValor) > 0 then
+          Result := StringReplace(Result, _TAcentos[_i], _TSemAcentos[_i], [rfReplaceAll]);
+      end;
+
+    finally
+      _TAcentos.free;
+      _TSemAcentos.free;
+    end;
+  end;
+  
+  function RemoverLetras(const aValor: string): string;
+  var
+    _StringLetras : String;
+    _TLetras : TStringList;
+    _i : Integer;
+  begin
+    Result := aValor;
+    _TLetras := TStringList.create;
+    try
+      _StringLetras := 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      for _i := 0 to length(_StringLetras) do
+      begin
+        _TLetras.Add(copy(_StringLetras, _i, 1));
+      end;
+
+      for _i := 0 to _TLetras.Count-1 do
+      begin
+        if pos(_TLetras[_i], aValor) > 0 then
+          Result := StringReplace(Result, _TLetras[_i], '', [rfReplaceAll]);
+      end;
+
+    finally
+      _TLetras.free;
+    end;
+  end;
+  
+  function RemoverCaractere(const aValor: string): string;
+  var
+    _StringLetras : String;
+    _TLetras : TStringList;
+    _i : Integer;
+  begin
+    Result := aValor;
+    _TLetras := TStringList.create;
+    try
+      _StringLetras := '!@#$%¨&*"''';
+      for _i := 0 to length(_StringLetras) do
+      begin
+        _TLetras.Add(copy(_StringLetras, _i, 1));
+      end;
+
+      for _i := 0 to _TLetras.Count-1 do
+      begin
+        if pos(_TLetras[_i], aValor) > 0 then
+          Result := StringReplace(Result, _TLetras[_i], '', [rfReplaceAll]);
+      end;
+
+    finally
+      _TLetras.free;
+    end;
+  end;
+  
+  function VerificaDDDValido(const aDDD: string): boolean;
+  begin  
+    if length(aDDD) > 2 then
+      aDDD:= copy(aDDD,(length(aDDD) - 1),length(aDDD));
+
+    if AnsiMatchText(aDDD, ['11','12','13','14','15','16','17','18','19','21','22','24','27','28','31','32','33',
+                                   '34','35','37','38','41','42','43','44','45','46','47','48','49','51','53','54','55',
+                                   '61','62','63','64','65','66','67','68','69','71','73','74','75','77','79','81','82',
+                                   '83','84','85','86','87','88','89','91','92','93','94','95','96','97','98','99']) then
+
+      Result := True
+    else
+      Result := False;  
+  end;
+
+  function RemoverXmlVersion(const aXml: string): string;
+  begin
+    Result := aXml;
+    Result := StringReplace(Result, '<?xml version="1.0"?>', '', [rfReplaceAll, rfIgnoreCase]);
+    Result := StringReplace(Result, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', '', [rfReplaceAll, rfIgnoreCase]);
+    Result := StringReplace(Result, '<?xml version="1.0" encoding="UTF-8"?>', '', [rfReplaceAll, rfIgnoreCase]);
+    Result := StringReplace(Result, '<?xml version="1.0" encoding="ISO-8859-1" standalone="yes"?>', '', [rfReplaceAll, rfIgnoreCase]);    
+    Result := StringReplace(Result, '<?xml version="1.0" encoding="ISO-8859-1"?>', '', [rfReplaceAll, rfIgnoreCase]);
+  end;
+  
+  function RemoveCaracteresMaiorMenor(const aXml: string): string;
+  begin
+    Result := aXml;
+    Result := StringReplace(Result, '<', '', [rfReplaceAll, rfIgnoreCase]);
+    Result := StringReplace(Result, '>', '', [rfReplaceAll, rfIgnoreCase]);
+  end;
+  
+  function RemoveAcentosDesconhecidos(const aXml: string) : string;
+  begin
+    Result := aXml;
+    Result := StringReplace(Result, '&', '', [rfReplaceAll]);
+    Result := StringReplace(Result, '&amp;QUOT;', '', [rfReplaceAll]);
+    Result := StringReplace(Result, '&QUOT;', '', [rfReplaceAll]);
+    Result := StringReplace(Result, 'QUOT;', '', [rfReplaceAll]);
+  end;
+  
+  function BuscaCaracteresValidos(aValor, aValidos: string): string;
+  var
+    I: Integer;
+  begin
+    Result := '';
+    for I := 1 to Length(aValor) do
+      if pos(aValor[I], aValidos) > 0 then
+        Result := Result + aValor[I];
+  end;
+  
+  function RemoverCaracteresInvalidos(Const text: string): string;
+  begin
+    Result:= StringReplace(text, '§', '',  [rfReplaceAll]);
+	Result:= StringReplace(text, '°', '',  [rfReplaceAll]);
+  end;
+
+  function TratarCaracteresInvalidosSP(const aXML: string): string;
+  begin
+    Result := aXML;
+    Result := StringReplace(Result, #160, '', [rfReplaceAll]);
+    Result := StringReplace(Result, '–', '', [rfReplaceAll]);
+    Result := StringReplace(Result, '¿', '', [rfReplaceAll]);
+    Result := StringReplace(Result, '´', '', [rfReplaceAll]);
+    Result := StringReplace(Result, Chr($81), '', [rfReplaceAll]);
+    Result := StringReplace(Result, '•', '', [rfReplaceAll]);
+    Result := StringReplace(Result, '§', '', [rfReplaceAll]);
+    Result := StringReplace(Result, '“', '', [rfReplaceAll]);
+    Result := StringReplace(Result, '”', '', [rfReplaceAll]);
+    Result := StringReplace(Result, '?', '', [rfReplaceAll]);
+    Result := StringReplace(Result, Chr($8D), '', [rfReplaceAll]);
+  end;

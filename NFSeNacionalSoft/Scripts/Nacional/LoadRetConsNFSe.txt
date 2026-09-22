@@ -1,0 +1,63 @@
+{
+  Variaveis externas disponiveis:
+    PathXsd: string;
+    MappingXsdFileName: string;
+    Input: string;
+    Datasets: TspdXSDDataset;
+}
+
+{$I Utils.txt}
+
+var
+  _Xml, _ListaEventos, _Discriminacao: string;
+begin
+  _Xml := Input;
+
+  Progress('Carregando configuracoes de XSDDataset.');
+
+  // Detectar versao do XSD
+  if Trim(Params.Values['VersaoManual']) = 'v1.01' then
+    Datasets.XsdFile := PathXsd + 'NFSe_v1.01.xsd'
+  else
+    Datasets.XsdFile := PathXsd + 'NFSe_v1.00.xsd';
+
+  Datasets.ConfigSection := 'RETORNO_NFSE';
+
+  if Trim(MappingXsdFileName) <> '' then
+    Datasets.MappingFileName := MappingXsdFileName;
+
+  Progress('Criando XSDDataset.');
+  Datasets.CreateXSDDataset;
+  
+  _Xml := StringReplace(_Xml, '<!--CRLF-->', #13#10, [rfReplaceAll]);
+  _Xml := StringReplace(_Xml, '<?xml version="1.0" encoding="utf-8"?>', '', [rfReplaceAll]);
+  
+  if Pos('MensagemRetorno', _Xml) > 0 then
+    Params.Add('XmlErro='+_Xml)
+  else
+  begin
+    if Pos('<ListaEventos>', _Xml) > 0 then
+      _ListaEventos := XmlSelect(_Xml, '//*[local-name()="ListaEventos"]');
+      
+    if Trim(_ListaEventos) <> '' then
+    begin
+      if (Pos('<CANCELAMENTO>', _ListaEventos) > 0)
+        or (Pos('<CANCELAMENTO_POR_SUBSTITUICAO>', _ListaEventos) > 0) then
+        Params.Add('CANCELADA=True');    
+    end;
+      
+    _Xml := XmlDeepNodeSearch(_Xml, Datasets.XsdElementName, '//*[local-name()="NFSe"]');
+
+    _Discriminacao := GetValueTagXml('xDescServ', _Xml);
+    _Xml := StringReplace(_Xml, _Discriminacao, '####DISCRIMINACAO####', [rfReplaceAll]);
+    _Xml := UnindentXml(_Xml);
+    _Xml := StringReplace(_Xml, '####DISCRIMINACAO####', _Discriminacao, [rfReplaceAll]);
+    
+    _Xml := StringReplace(_Xml, #13#10, '|', [rfReplaceAll]);    
+  
+    Datasets.LoadFromXMLContent(_Xml);
+    Params.Add('XmlNfse='+_Xml);
+  end;
+  
+  Progress('XML carregado com sucesso.');
+end.

@@ -1,0 +1,21 @@
+function FormatarCodigoItemListaServicoNacional(const aCodigo: string; ComPonto: Boolean): string;
+begin
+  Result := StringReplace(aCodigo, '.', '', [rfReplaceAll]);
+  if Length(Result) = 5 then
+	Result := '0' + Result;
+	
+  if ComPonto then
+    Result := Copy(Result, 1, 2) + '.' +
+              Copy(Result, 3, 2) + '.' +
+              Copy(Result, 5, 2);
+end;
+
+function FormatarCodigoNbs(const aCodigo: string): string;
+begin
+  Result := StringReplace(aCodigo, '.', '', [rfReplaceAll]);
+	
+  Result := Copy(Result, 1, 1) + '.' +
+            Copy(Result, 2, 4) + '.' +
+            Copy(Result, 6, 2) + '.' +
+            Copy(Result, 8, 2);
+end;

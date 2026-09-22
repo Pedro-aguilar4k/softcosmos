@@ -1,0 +1,103 @@
+CREATE TABLE PRODUTOSIMAGENS_TEMP (
+    NOMEORIGINAL  VARCHAR(100),
+    TEMP          VARCHAR(100),
+    CONSTANTE     VARCHAR(20),
+    CODIGO        VARCHAR(20),
+    ADICIONAL     VARCHAR(20),
+    CODIMAGEM     INTEGER
+);
+
+
+
+
+
+SET TERM ^ ;
+
+create or alter procedure SP_PRODUTOSIMAGENS_TEMP
+returns (
+    NOMEORIGINAL varchar(100),
+    CODIMAGEM integer)
+as
+declare variable VCODIGO varchar(20);
+declare variable VADICIONAL varchar(20);
+declare variable VTEMP varchar(100);
+declare variable VCODIGO2 varchar(20);
+declare variable VADICIONAL2 varchar(20);
+declare variable VTEMP2 varchar(100);
+begin
+  --Exemplo de nome de arquivo
+  --GRD_32_sela_karina1.jpg
+  --GRD_adic01_32_sela_karina2.jpg
+
+  --Remove constante do inicio do arquivo
+  update PRODUTOSIMAGENS_TEMP
+  set TEMP = substring(NOMEORIGINAL from 5 for char_length(NOMEORIGINAL)),
+      CONSTANTE = substring(NOMEORIGINAL from 1 for 3)
+  where NOMEORIGINAL is not null;
+
+  --Remove indice de imagens adicionais
+  update PRODUTOSIMAGENS_TEMP
+  set TEMP = substring(substring(TEMP from 5 for char_length(TEMP)) from position('_', substring(TEMP from 5 for char_length(TEMP))) + 1 for char_length(TEMP)),
+      ADICIONAL = substring(substring(TEMP from 5 for char_length(TEMP)) from 1 for position('_', substring(TEMP from 5 for char_length(TEMP))) - 1)
+  where substring(TEMP from 1 for 4) = 'adic';
+
+  --Remove codigo do produto
+  update PRODUTOSIMAGENS_TEMP
+  set TEMP = substring(TEMP from position('_', TEMP) + 1 for char_length(TEMP)),
+      CODIGO = substring(TEMP from 1 for position('_', TEMP) - 1)
+  where TEMP is not null;
+
+  --Consistencia
+  if (exists(select *
+             from PRODUTOSIMAGENS_TEMP
+             where NOMEORIGINAL <> CONSTANTE || '_' || case
+                                                         when ADICIONAL is not null then 'adic' || ADICIONAL || '_'
+                                                         else ''
+                                                       end || CODIGO || '_' || TEMP)) then
+  begin
+    --Erro na remocao dos campos
+    exit;
+  end
+
+  --Gera codigo para as imagens
+  CODIMAGEM = 0;
+  VCODIGO2 = '';
+  VADICIONAL2 = '';
+  VTEMP2 = '';
+  for select NOMEORIGINAL, coalesce(CODIGO, ''), coalesce(ADICIONAL, ''), lower(coalesce(TEMP, ''))
+      from PRODUTOSIMAGENS_TEMP
+      order by 2, 3, 4
+      into :NOMEORIGINAL, :VCODIGO, :VADICIONAL, :VTEMP
+  do
+  begin
+    if ((VCODIGO2 <> VCODIGO) or (VADICIONAL2 <> VADICIONAL) or (VTEMP2 <> VTEMP)) then
+    begin
+      CODIMAGEM = CODIMAGEM + 1;
+      VCODIGO2 = VCODIGO;
+      VADICIONAL2 = VADICIONAL;
+      VTEMP2 = VTEMP;
+    end
+
+    update PRODUTOSIMAGENS_TEMP
+    set CODIMAGEM = :CODIMAGEM
+    where NOMEORIGINAL = :NOMEORIGINAL;
+
+    suspend;
+  end
+
+  --Alimenta tabela de codigo de imagens
+  delete from PRODUTOSIMAGENS
+  where CODPRODUTO is not null;
+
+  insert into PRODUTOSIMAGENS (CODPRODUTO, CODIMAGEM)
+  select distinct cast(CODIGO as integer) as CODPRODUTO, CODIMAGEM
+  from PRODUTOSIMAGENS_TEMP;
+
+  --Atualiza sequencial do codigo de imagem
+  if (CODIMAGEM > 0) then
+    update NOVOORC
+    set IMAGEM = :CODIMAGEM
+    where LOJA is not null;
+end^
+
+SET TERM ; ^

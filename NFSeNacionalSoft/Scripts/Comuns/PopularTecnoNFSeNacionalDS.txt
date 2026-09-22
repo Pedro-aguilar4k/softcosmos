@@ -1,0 +1,86 @@
+{$I ..\Comuns\ObterNomeValor.txt}
+
+  procedure PopularTecnoNFSeNacionalDS;
+  var
+    _i: Integer;
+  begin
+    if (Pos('INCLUIRDPS', Uppercase(_Tx2.Text)) <= 0) or (Pos('SALVARDPS', Uppercase(_Tx2.Text)) <= 0) then
+      RaiseException('Favor informar a seção INCLUIRDPS/SALVARDPS no TX2');
+
+    for _i := _inicio to _Tx2.Count - 1 do
+    begin
+      _linha := Trim(_Tx2[_i]);
+
+      // Adiciona numa lista temporaria os campos personalizados por municipio que nao fazem parte do TecnoNFSeNacional
+      if (_linha <> '') and (_linha[1] = '@') then
+        _CamposMunicipio.Add(IntToStr(_DsTecnoAtual.RecordCount) + _linha);
+
+      if (_linha <> '') and (_linha[1] <> ';') and (_linha[1] <> '@')then  // pular linhas em branco,comentarios e campos personalizados
+      begin
+        if EhComando(_linha) then
+        begin
+          case AnsiIndexText(_linha, ['INCLUIRDPS',
+									  'SALVARDPS',
+									  'INCLUIRDEDUCAO',
+									  'SALVARDEDUCAO',
+                                      'INCLUIRNFSEREFERENCIA',
+								      'SALVARNFSEREFERENCIA',
+								      'INCLUIRDOCUMENTOREFERENCIADO',
+								      'SALVARDOCUMENTOREFERENCIADO'
+									  ]) of
+            0:
+            begin
+              _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_NOTA);
+              _DsTecnoAtual.Append;
+            end;
+            1:
+            begin
+              _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_NOTA);
+              _DsTecnoAtual.Post;
+            end;
+            2:
+            begin
+              _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_DEDUCOES);
+              _DsTecnoAtual.Append;
+            end;
+            3: _DsTecnoAtual.Post;
+			4:
+            begin
+              _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName('NfseReferencia');
+              _DsTecnoAtual.Append;
+            end;
+            5:
+            begin
+              _DsTecnoAtual.Post;
+              _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_NOTA);
+            end;
+            6:
+            begin
+              _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName('DocumentoReferenciado');
+              _DsTecnoAtual.Append;
+            end;
+            7:
+            begin
+              _DsTecnoAtual.Post;
+              _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_NOTA);
+            end;
+          else
+          begin
+            if AnsiMatchText(_linha, ['INCLUIRSERVICO','SALVARSERVICO']) then
+              RaiseException('O município não aceita mais de um serviço por DPS, remova o grupo INCLUIRSERVICO/SALVARSERVICO do TX2 e envie novamente.')
+            else
+              RaiseException('Comando desconhecido: ' + _linha);
+            end;
+          end;
+        end
+        else
+        begin
+          ObterNomeValor(_linha, _NomeCampo, _ValorCampo);
+          if _DsTecnoAtual <> nil then
+            Campo(_DsTecnoAtual, _NomeCampo).AsString := _ValorCampo
+          else
+            RaiseException('Favor atribuir valores a campos somente entre os comandos de inserção e gravação');
+        end;
+      end;
+    end;
+  end;

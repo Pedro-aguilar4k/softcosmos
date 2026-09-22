@@ -1,0 +1,55 @@
+;***************************************************************************************************
+;        ARQUIVO DE MAPEAMENTO PARA O PADRAO Nacional v1.01
+;***************************************************************************************************
+
+;***************************************************************************************************
+;Configuracao do NFSeDataset para retorno da NFSe
+;***************************************************************************************************
+[RETORNO_NFSE]
+XSDElementName=NFSe
+XSDFile=NFSe_v1.01.xsd
+XSDStartNode=
+IgnoredXPaths=
+UseNamespacePrefixes=0
+XMLHeader=
+RootAttributes=
+
+;*****************************************************************************************************************************************
+;Nomes dos Campos: Retorno da NFSe
+;*****************************************************************************************************************************************
+[NFSe]
+ChaveNFSe=NFSe/infNFSe/@Id
+NumeroNFSe=NFSe/infNFSe/nNFSe
+Versao=NFSe/infNFSe/verAplic
+Status=NFSe/infNFSe/cStat
+DataEmissaoNFSe=NFSe/infNFSe/dhProc
+CnpjPrestador=NFSe/infNFSe/emit/CNPJ
+CpfPrestador=NFSe/infNFSe/emit/CPF
+InscricaoMunicipalPrestador=NFSe/infNFSe/emit/IM
+DataEmissao=NFSe/infNFSe/DPS/infDPS/dhEmi
+versaoDps=NFSe/infNFSe/DPS/infDPS/verAplic
+SerieDps=NFSe/infNFSe/DPS/infDPS/serie
+NumeroDps=NFSe/infNFSe/DPS/infDPS/nDPS
+Competencia=NFSe/infNFSe/DPS/infDPS/dCompet
+CnpjPrestadorDps=NFSe/infNFSe/DPS/infDPS/prest/CNPJ
+CpfPrestadorDps=NFSe/infNFSe/DPS/infDPS/prest/CPF
+
+;***************************************************************************************************
+;Configuracao do NFSeDataset retorno do cancelamento da NFSe
+;***************************************************************************************************
+[RETORNO_CANCELAR]
+XSDElementName=evento
+XSDFile=evento_v1.01.xsd
+XSDStartNode=
+IgnoredXPaths=evento/infEvento/pedRegEvento/Signature;evento/Signature/SignedInfo/Reference/Transforms/Transform
+UseNamespacePrefixes=0
+XMLHeader=
+RootAttributes=
+
+;***************************************************************************************************
+;Nomes dos Campos
+;***************************************************************************************************
+[evento]
+DataCancelamento=evento/infEvento/dhProc
+Descricao=evento/infEvento/pedRegEvento/infPedReg/e101101/xDesc
+Motivo=evento/infEvento/pedRegEvento/infPedReg/e101101/xMotivo

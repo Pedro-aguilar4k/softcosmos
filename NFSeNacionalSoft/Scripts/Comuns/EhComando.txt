@@ -1,0 +1,20 @@
+  function EhComando(s: string): boolean;
+  begin
+    s := Trim(s);
+    Result := AnsiMatchText(s, ['INCLUIR', 
+	                            'SALVAR', 
+								'INCLUIRRPS', 
+								'SALVARRPS', 
+								'INCLUIRSERVICO', 
+								'SALVARSERVICO', 
+								'INCLUIRFORMAPAGAMENTO', 
+								'SALVARFORMAPAGAMENTO', 
+								'INCLUIRDEDUCAO', 
+								'SALVARDEDUCAO', 
+								'INCLUIRNFSEREFERENCIA',
+								'SALVARNFSEREFERENCIA',
+								'INCLUIRDOCUMENTOREFERENCIADO',
+								'SALVARDOCUMENTOREFERENCIADO',
+								'INCLUIRDPS',
+								'SALVARDPS']);
+  end;

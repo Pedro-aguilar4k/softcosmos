@@ -1,0 +1,68 @@
+Var _Erro:String;
+
+Function TratarMascara(const aValor : String) : String;
+begin
+  Result := aValor;
+  Result := StringReplace(Result, '/', '', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '\', '', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '-', '', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '.', '', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '(', '', [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, ')', '', [rfReplaceAll, rfIgnoreCase]);
+  Result := Trim(Result);
+end;
+
+Procedure TamInvalido(Const aCampo: String; aTamanhos: array of Integer);
+var _Valor: String;
+    _Result, i : Integer;
+begin
+  _Valor := TratarMascara(_DsTecnoAtual.FieldByName(aCampo).asString)
+  _Result := 0;
+  if (Length(_Valor) <> 0) then
+  begin
+    For i := 0 to Length(aTamanhos)-1 do
+    begin
+      if (Length(_Valor) <> aTamanhos[i]) then
+        inc(_Result);
+    end;
+  end;  
+  if (_Result = Length(aTamanhos)) then
+    _Erro := _Erro +' '+aCampo+'; ';
+end;
+
+Procedure TamMaxInvalido(Const aCampo: String; aTamanhoMax: Integer);
+var _Valor: String;
+begin
+  _Valor := TratarMascara(_DsTecnoAtual.FieldByName(aCampo).asString)
+  if (Length(_Valor) > aTamanhoMax) then
+    _Erro := _Erro +' '+aCampo+'; ';
+end;
+
+procedure ValidaTamanhoCamposTecnoNFSe;
+var _MsgErro : String;
+begin
+  _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_NOTA);
+  if _DsTecnoAtual.RecordCount > 1 then
+  begin
+    _DsTecnoAtual.First;
+    While not(_DsTecnoAtual.eof) do
+    begin
+      _Erro := '';
+      TamInvalido('CpfCnpjPrestador',[11,14]);
+      TamInvalido('CpfCnpjTomador',[11,14]);
+      TamInvalido('CpfCnpjIntermediario',[11,14]);
+      TamInvalido('CpfCnpjReferencia',[11,14]);
+      TamMaxInvalido('CepPrestacaoServico',8);
+      TamMaxInvalido('CepPrestador',8);
+      TamMaxInvalido('CepTomador',8);
+      TamMaxInvalido('CepObra',8);
+
+      if Trim(_Erro) <> '' then
+        _MsgErro := _MsgErro + ' | Rps '+_DsTecnoAtual.FieldByName('NumeroRps').asString+': '+_Erro;
+
+      _DsTecnoAtual.Next;
+    end;
+    if Trim(_MsgErro) <> '' then
+      RaiseException('Campos com Tamanho inválido '+_MsgErro);
+  end;
+end;

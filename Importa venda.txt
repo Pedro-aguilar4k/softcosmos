@@ -1,0 +1,9 @@
+1||CPF/CNPJ*
+2|DESCRICAO|UNIDADE|QUANTIDADE*|PRECO||ICMS|IPI|CODPRODUTO*
+2|...
+2|...
+2|...
+2|DESCRICAO|UNIDADE|QUANTIDADE*|PRECO||ICMS|IPI|CODPRODUTO*
+
+- Ativar a configuração de filial "Importa Vendas de arquivo TXT", para aparecer o menu Operações > Importação > Importa venda (txt);
+- Os campos com * são obrigatórios, os demais são opcionais e quando não forem utilizados, informar em branco ex. ||;

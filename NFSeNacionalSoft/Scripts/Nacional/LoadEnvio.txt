@@ -1,0 +1,995 @@
+{
+  Variaveis externas disponiveis:
+    PathXsd: string;
+    MappingXsdFileName: string;
+    Input: string;
+    Params: TStringList;
+    Datasets: TspdXSDDataset;
+}
+var
+  _Tx2: TStringList;
+  _CamposMunicipio: TStringList;
+  _inicio: Integer;
+  _PadraoTecnoNFSe: Boolean;
+  _linha, _NomeCampo, _ValorCampo: string;
+  _TipoIF, _InscricaoFederal, _SerieDps, _NumeroDps: string;
+  _PastaTecnoNFSe: string;
+  _DsTecnoAtual: TSpdXSDClientDataSet;
+  _DsCidadeAtual: TSpdXSDClientDataSet;
+  _Vlr: Double;
+  _QtdeRps, _ValorInt: Integer;
+  _VersaoManual: string;
+
+const
+  DSTECNO_LOTE = 'TecnoNFSeNacional';
+  DSTECNO_NOTA = 'Dps';
+  DSTECNO_DEDUCOES = 'Deducao';
+  DSTECNO_NFSEREFERENCIA = 'NfseReferencia';
+  DSTECNO_DOCUMENTOREFERENCIADO = 'DocumentoReferenciado';
+  DSCIDADE_LOTE = 'DPS';
+  DSCIDADE_NOTA = 'DPS';
+  DSCIDADE_DEDUCOES = 'docDedRed';
+  DSCIDADE_NFSEREFERENCIA = 'refNFSe';
+  DSCIDADE_DOCUMENTOREFERENCIADO = 'documentos';
+
+{$I ..\Comuns\Utils.txt}
+{$I ..\Comuns\Comuns.txt}
+{$I ..\Comuns\EhComando.txt}
+{$I ..\Comuns\CarregarTX2.txt}
+{$I ..\Comuns\FormataFloat.txt}
+{$I ..\Comuns\CriarDatasets.txt}
+{$I ..\Comuns\BuscarInfoCidade.txt}
+{$I ..\Comuns\RotinasLerSetarCampos.txt}
+{$I ..\Comuns\SetarCamposMunicipio.txt}
+{$I ..\Comuns\ConverterCodigoMunicipio.txt}
+{$I ..\Comuns\FormatarCodigoItemListaServico.txt}
+{$I ..\Comuns\PrepararTecnoNFSeNacionalDatasets.txt}
+
+  procedure ExceptionValorInvalidoCampo(const aCampo: string);
+  begin
+    RaiseException('Valor inválido para o campo ' + aCampo);
+  end;
+
+begin
+  Progress('Criando XSDDataset');
+  CriarDatasets;
+
+  _Tx2 := TStringList.Create;
+  _CamposMunicipio := TStringList.Create;
+
+  try
+    Progress('Carregando conteudo/arquivo TX2');
+    CarregarTX2;
+
+    _DsTecnoAtual := nil;
+
+    if _PadraoTecnoNFSe then
+    begin
+      Progress('Usando Padrao TecnoNFSe: preparando datasets');
+      PrepararTecnoNFSeNacionalDatasets;
+      // Passar dados para o Datasets, convertendo do padrao TecnoNFSe para o padrao da Cidade
+
+      // Comecar com as notas
+      Progress('Usando Padrao TecnoNFSe: carregando dados das notas');
+      _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_NOTA);
+      _DsCidadeAtual := Datasets.GetDataSetByName(DSCIDADE_NOTA);
+
+      _QtdeRps := _DsTecnoAtual.RecordCount;
+
+      _DsTecnoAtual.First;
+
+      while not _DsTecnoAtual.Eof do
+      begin
+        _DsCidadeAtual.Append;
+
+        // Detectar versao do XSD
+        if Trim(Params.Values['VersaoManual']) = 'v1.01' then
+          _VersaoManual := '1.01'
+        else
+          _VersaoManual := '1.00';
+
+        SetarCampoValor('versao', _VersaoManual);
+
+        _ValorCampo := Trim(CampoTecno('TipoEmitente'));
+        case AnsiIndexText(_ValorCampo, ['1', '2', '3']) of
+          0: _NomeCampo := 'CpfCnpjPrestador';
+          1: _NomeCampo := 'CpfCnpjTomador';
+          2: _NomeCampo := 'CpfCnpjIntermediario';
+        else
+          ExceptionValorInvalidoCampo('TipoEmitente. Valores aceitos: 1 - Prestador, 2 - Tomador, 3 - Intermediário.');
+        end;
+
+        SetarCampoValorTamanho('tpEmit', _ValorCampo, 1);
+
+        _ValorCampo := RemoveMascara(CampoTecno(_NomeCampo));
+        case Length(_ValorCampo) of
+          11:
+          begin
+            _TipoIF := '1';
+            _InscricaoFederal := PreencheZerosEsquerda(_ValorCampo, 14);
+          end;
+          14:
+          begin
+            _TipoIF := '2';
+            _InscricaoFederal := _ValorCampo;
+          end;
+        else
+          ExceptionValorInvalidoCampo(_NomeCampo + '. Valores aceitos: 11 - CPF, 14 - CNPJ');
+        end;
+
+        _NumeroDps := PreencheZerosEsquerda(Trim(CampoTecno('NumeroDps')), 15);
+        _SerieDps := PreencheZerosEsquerda(Trim(CampoTecno('SerieDps')), 5);
+
+        _ValorCampo := 'DPS' + RemoveMascara(CampoTecno('CodigoCidadeEmitente')) +
+                       _TipoIF + _InscricaoFederal + _SerieDps + _NumeroDps;
+
+        SetarCampoValorTamanhoObrigatorio('IdDPS', _ValorCampo, 45);
+
+        SetarCampoValorTamanhoObrigatorio('tpAmb', Params.Values['Ambiente'], 1);
+
+        if Trim(CampoTecno('DataEmissaoDps')) = '' then
+          ExceptionValorInvalidoCampo('DataEmissaoDps. Deve ser preenchido no seguinte formato: "YYYY-MM-DD"T"hh:mm:ss"');
+
+        _ValorCampo := FormatAnyDateTime(CampoTecno('DataEmissaoDps'), 'YYYY-MM-DD"T"hh:mm:ss') + '-03:00';
+        SetarCampoValorTamanhoObrigatorio('dhEmi', _ValorCampo, 25);
+
+        SetarCampoValorTamanho('verAplic', 'EmissorWeb_0.6.3.0', 20);
+
+        VerificaSeEhNumero('serie', _SerieDps);
+        SetarCampoValorTamanhoObrigatorio('serie', RemoverZerosEsquerda(_SerieDps), 5);
+
+        VerificaSeEhNumero('nDPS', _NumeroDps);
+        SetarCampoValorTamanhoObrigatorio('nDPS', RemoverZerosEsquerda(_NumeroDps), 15);
+
+        if Trim(CampoTecno('Competencia')) = '' then
+          ExceptionValorInvalidoCampo('Competencia. Deve ser preenchido no seguinte formato: "YYYY-MM-DD"');
+
+        _ValorCampo := FormatAnyDateTime(CampoTecno('Competencia'), 'YYYY-MM-DD');
+        SetarCampoValorTamanhoObrigatorio('dCompet', _ValorCampo, 10);
+
+        SetarCampoValorTamanhoObrigatorio('cLocEmi', RemoveMascara(CampoTecno('CodigoCidadeEmitente')), 7);
+
+        { Grupo de info da NFSe a ser substituida }
+        SetarCampoValorTamanho('chSubstda', CampoTecno('ChaveNfseSubstituida'), 50);
+        _ValorCampo := Trim(CampoTecno('CodMotivoNfseSubstituida'));
+        case AnsiIndexText(_ValorCampo, ['', '1', '2', '3', '4', '5', '99']) of
+          0: ; //IGNORA
+          1, 2, 3, 4, 5: SetarCampoValorTamanho('cMotivo', CampoTecno('CodMotivoNfseSubstituida'), 1);
+          6:
+          begin
+            SetarCampoValorTamanho('cMotivo', CampoTecno('CodMotivoNfseSubstituida'), 2);
+            SetarCampoTamanhoMinimo('MotivoNfseSubstituida', 'xMotivo', 255, 15);
+          end;
+        else
+          ExceptionValorInvalidoCampo('CodMotivoNfseSubstituida.  Valores aceitos: ' + #13#10 +
+            '1 - Desenquadramento de NFS-e do Simples Nacional;' + #13#10 +
+            '2 - Enquadramento de NFS-e no Simples Nacional;' + #13#10 +
+            '3 - Inclusão Retroativa de Imunidade/Isenção para NFS-e;' + #13#10 +
+            '4 - Exclusão Retroativa de Imunidade/Isenção para NFS-e;' + #13#10 +
+            '5 - Rejeição de NFS-e pelo tomador ou pelo intermediário se responsável pelo recolhimento do tributo;' + #13#10 +
+            '99 - Outros;');
+        end;
+
+        // Dados Prestador
+        if CampoCidade('tpEmit') = '1' then
+          _ValorCampo := _InscricaoFederal
+        else
+          _ValorCampo := Trim(RemoveMascara(CampoTecno('CpfCnpjPrestador')));
+
+        case Length(_ValorCampo) of
+          11: SetarCampoValor('CPFPrestador', _ValorCampo);
+          14: SetarCampoValor('CNPJPrestador', _ValorCampo);
+        else
+        begin
+          if Trim(CampoTecno('NifPrestador')) <> '' then
+            SetarCampoValorTamanho('NIFPrestador', CampoTecno('NifPrestador'), 40)
+          else if Trim(CampoTecno('CodigoNifPrestador')) <> '' then
+            SetarCampoValorTamanho('cNaoNIFPrestador', CampoTecno('CodigoNifPrestador'), 1)
+          else
+            ExceptionValorInvalidoCampo('CpfCnpjPrestador. Valores aceitos: 11 - CPF, 14 - CNPJ');
+        end;
+        end;
+
+        SetarCampoValorTamanho('CAEPFPrestador', CampoTecno('NumeroCAEPFPrestador'), 14);
+        SetarCampoValorTamanho('IMPrestador', CampoTecno('InscricaoMunicipalPrestador'), 15);
+        SetarCampoValorTamanho('xNomePrestador', CampoTecno('RazaoSocialPrestador'), 150);
+
+        _ValorCampo := Trim(RemoveMascara(CampoTecno('CodigoCidadePrestador')));
+        if _ValorCampo = '9999999' then
+        begin
+          SetarCampoValorTamanho('cPaisPrestador', CampoTecno('PaisPrestador'), 2);
+          SetarCampoValorTamanho('cEndPostPrestador', CampoTecno('CepPrestador'), 11);
+          SetarCampoValorTamanho('xCidadePrestador', CampoTecno('DescricaoCidadePrestador'), 60);
+          SetarCampoValorTamanho('xEstProvRegPrestador', CampoTecno('RegiaoPrestador'), 60);
+        end
+        else
+        begin
+          SetarCampoValorTamanho('cMunPrestador', _ValorCampo, 7);
+          SetarCampoValorTamanho('CEPPrestador', RemoveMascara(CampoTecno('CepPrestador')), 8);
+          SetarCampoValorTamanho('xLgrPrestador', CampoTecno('EnderecoPrestador'), 255);
+          SetarCampoValorTamanho('nroPrestador', CampoTecno('NumeroPrestador'), 60);
+          SetarCampoValorTamanho('xCplPrestador', CampoTecno('ComplementoPrestador'), 156);
+          SetarCampoValorTamanho('xBairroPrestador', CampoTecno('BairroPrestador'), 60);
+        end;
+
+        SetarCampoValorTamanho('fonePrestador', CampoTecno('TelefonePrestador'), 20);
+        SetarCampoValorTamanho('emailPrestador', CampoTecno('EmailPrestador'), 80);
+
+        _ValorCampo := Trim(CampoTecno('OptanteSimplesNacional'));
+        case AnsiIndexText(_ValorCampo, ['', '1', '2', '3']) of
+          0, 1: SetarCampoValor('opSimpNac', '1');
+          2, 3: SetarCampoValor('opSimpNac', _ValorCampo);
+        else
+          ExceptionValorInvalidoCampo('OptanteSimplesNacional. Valores aceitos: ' + #13#10 +
+            '1 - Não Optante;' + #13#10 +
+            '2 - Optante - Microempreendedor Individual (MEI);' + #13#10 +
+            '3 - Optante - Microempresa ou Empresa de Pequeno Porte (ME/EPP);');
+        end;
+
+        _ValorCampo := Trim(CampoTecno('RegimeApuracaoTributaria'));
+        case AnsiIndexText(_ValorCampo, ['', '1', '2', '3']) of
+          0: ; //IGNORA
+          1, 2, 3: SetarCampoValor('regApTribSN', _ValorCampo);
+        else
+          ExceptionValorInvalidoCampo('RegimeEspecialTributacao. Valores aceitos: ' + #13#10 +
+            '1 – Regime de apuração dos tributos federais e municipal pelo SN;' + #13#10 +
+            '2 – Regime de apuração dos tributos federais pelo SN e o ISSQN pela NFS-e conforme respectiva legislação municipal do tributo;' + #13#10 +
+            '3 – Regime de apuração dos tributos federais e municipal pela NFS-e conforme respectivas legilações federal e municipal de cada tributo;');
+        end;
+
+        _ValorCampo := Trim(CampoTecno('RegimeEspecialTributacao'));
+        case AnsiIndexText(_ValorCampo, ['0', '1', '2', '3', '4', '5', '6', '']) of
+          0, 7: SetarCampoValor('regEspTrib', '0');
+          1, 2, 3, 4, 5, 6: SetarCampoValor('regEspTrib', _ValorCampo);
+        else
+          ExceptionValorInvalidoCampo('RegimeEspecialTributacao. Valores aceitos: ' + #13#10 +
+            '0 - Nenhum;' + #13#10 +
+            '1 - Ato Cooperado (Cooperativa);' + #13#10 +
+            '2 - Estimativa;' + #13#10 +
+            '3 - Microempresa Municipal;' + #13#10 +
+            '4 - Notário ou Registrador;' + #13#10 +
+            '5 - Profissional Autônomo;' + #13#10 +
+            '6 - Sociedade de Profissionais;');
+        end;
+
+        // Dados Tomador
+        if CampoCidade('tpEmit') = '2' then
+          _ValorCampo := _InscricaoFederal
+        else
+          _ValorCampo := Trim(RemoveMascara(CampoTecno('CpfCnpjTomador')));
+
+        case Length(_ValorCampo) of
+          0: ; //IGNORA
+          11: SetarCampoValor('CPFTomador', _ValorCampo);
+          14: SetarCampoValor('CNPJTomador', _ValorCampo);
+        else
+          ExceptionValorInvalidoCampo('CpfCnpjTomador. Valores aceitos: 11 - CPF, 14 - CNPJ');
+        end;
+
+        if Trim(CampoTecno('NifTomador')) <> '' then
+        begin
+          SetarCampoValor('CPFTomador', '');
+          SetarCampoValor('CNPJTomador', '');
+          SetarCampoValorTamanho('NIFTomador', CampoTecno('NifTomador'), 40);
+        end
+        else if Trim(CampoTecno('CodigoNifTomador')) <> '' then
+        begin
+          SetarCampoValor('CPFTomador', '');
+          SetarCampoValor('CNPJTomador', '');
+          SetarCampoValorTamanho('cNaoNIFTomador', CampoTecno('CodigoNifTomador'), 1);
+        end;
+
+        SetarCampoValorTamanho('CAEPFTomador', CampoTecno('NumeroCAEPFTomador'), 14);
+        SetarCampoValorTamanho('IMTomador', CampoTecno('InscricaoMunicipalTomador'), 15);
+        SetarCampoValorTamanho('xNomeTomador', CampoTecno('RazaoSocialTomador'), 150);
+
+        _ValorCampo := Trim(RemoveMascara(CampoTecno('CodigoCidadeTomador')));
+        if _ValorCampo = '9999999' then
+        begin
+          SetarCampoValorTamanho('cPaisTomador', CampoTecno('PaisTomador'), 2);
+          SetarCampoValorTamanho('cEndPostTomador', CampoTecno('CepTomador'), 11);
+          SetarCampoValorTamanho('xCidadeTomador', CampoTecno('DescricaoCidadeTomador'), 60);
+          SetarCampoValorTamanho('xEstProvRegTomador', CampoTecno('RegiaoTomador'), 60);
+          SetarCampoValorTamanho('xBairroTomador', CampoTecno('BairroTomador'), 60);
+          SetarCampoValorTamanho('nroTomador', CampoTecno('NumeroTomador'), 60);
+          SetarCampoValorTamanho('xLgrTomador', CampoTecno('EnderecoTomador'), 255);
+        end
+        else
+        begin
+          SetarCampoValorTamanho('cMunTomador', _ValorCampo, 7);
+          SetarCampoValorTamanho('CEPTomador', RemoveMascara(CampoTecno('CepTomador')), 8);
+          SetarCampoValorTamanho('xLgrTomador', CampoTecno('EnderecoTomador'), 255);
+          SetarCampoValorTamanho('nroTomador', CampoTecno('NumeroTomador'), 60);
+          SetarCampoValorTamanho('xCplTomador', CampoTecno('ComplementoTomador'), 156);
+          SetarCampoValorTamanho('xBairroTomador', CampoTecno('BairroTomador'), 60);
+        end;
+
+        SetarCampoValorTamanho('foneTomador', CampoTecno('TelefoneTomador'), 20);
+        SetarCampoValorTamanho('emailTomador', CampoTecno('EmailTomador'), 80);
+
+        // Dados Intermediario
+        if CampoCidade('tpEmit') = '2' then
+          _ValorCampo := _InscricaoFederal
+        else
+          _ValorCampo := Trim(RemoveMascara(CampoTecno('CpfCnpjIntermediario')));
+
+        case Length(_ValorCampo) of
+          0: ; //IGNORA
+          11: SetarCampoValor('CPFIntermediario', _ValorCampo);
+          14: SetarCampoValor('CNPJIntermediario', _ValorCampo);
+        else
+        begin
+          if Trim(CampoTecno('NifIntermediario')) <> '' then
+            SetarCampoValorTamanho('NIFIntermediario', CampoTecno('NifIntermediario'), 40)
+          else if Trim(CampoTecno('CodigoNifIntermediario')) <> '' then
+            SetarCampoValorTamanho('cNaoNIFIntermediario', CampoTecno('CodigoNifIntermediario'), 1)
+          else
+            ExceptionValorInvalidoCampo('CpfCnpjIntermediario. Valores aceitos: 11 - CPF, 14 - CNPJ');
+        end;
+        end;
+
+        SetarCampoValorTamanho('CAEPFIntermediario', CampoTecno('NumeroCAEPFIntermediario'), 14);
+        SetarCampoValorTamanho('IMIntermediario', CampoTecno('InscricaoMunicipalIntermediario'), 15);
+        SetarCampoValorTamanho('xNomeIntermediario', CampoTecno('RazaoSocialIntermediario'), 150);
+
+        _ValorCampo := Trim(RemoveMascara(CampoTecno('CodigoCidadeIntermediario')));
+        if _ValorCampo = '9999999' then
+        begin
+          SetarCampoValorTamanho('cPaisIntermediario', CampoTecno('PaisIntermediario'), 2);
+          SetarCampoValorTamanho('cEndPostIntermediario', CampoTecno('CepIntermediario'), 11);
+          SetarCampoValorTamanho('xCidadeIntermediario', CampoTecno('DescricaoCidadeIntermediario'), 60);
+          SetarCampoValorTamanho('xEstProvRegIntermediario', CampoTecno('RegiaoIntermediario'), 60);
+        end
+        else
+        begin
+          SetarCampoValorTamanho('cMunIntermediario', _ValorCampo, 7);
+          SetarCampoValorTamanho('CEPIntermediario', RemoveMascara(CampoTecno('CepIntermediario')), 8);
+          SetarCampoValorTamanho('xLgrIntermediario', CampoTecno('EnderecoIntermediario'), 255);
+          SetarCampoValorTamanho('nroIntermediario', CampoTecno('NumeroIntermediario'), 60);
+          SetarCampoValorTamanho('xCplIntermediario', CampoTecno('ComplementoIntermediario'), 156);
+          SetarCampoValorTamanho('xBairroIntermediario', CampoTecno('BairroIntermediario'), 60);
+        end;
+
+        SetarCampoValorTamanho('foneIntermediario', CampoTecno('TelefoneIntermediario'), 20);
+        SetarCampoValorTamanho('emailIntermediario', CampoTecno('EmailIntermediario'), 80);
+
+        // Dados Servico
+        SetarCampoValorTamanhoObrigatorio('cLocPrestacao', RemoveMascara(CampoTecno('CodigoCidadePrestacao')), 7);
+        SetarCampoValorTamanho('cPaisPrestacao', RemoveMascara(CampoTecno('CodigoPaisPrestacao')), 2);
+
+        SetarCampoValorTamanhoObrigatorio('cTribNac', RemoveMascara(CampoTecno('CodigoItemListaServico')), 6);
+        SetarCampoValorTamanho('cTribMun', RemoveMascara(CampoTecno('CodigoTributacaoMunicipio')), 3);
+        SetarCampoValorTamanhoObrigatorio('xDescServ', CampoTecno('DiscriminacaoServico'), 1000);
+        SetarCampoValorTamanho('cNBS', RemoveMascara(CampoTecno('CodigoNbs')), 9);
+        SetarCampoValorTamanho('cIntContrib', RemoveMascara(CampoTecno('CodigoContribuinte')), 20);
+
+        _ValorCampo := Trim(CampoTecno('CodigoModoPrestacao'));
+        case AnsiIndexText(_ValorCampo, ['0', '1', '2', '3', '4', '']) of
+          0, 1, 2, 3, 4: SetarCampoValor('mdPrestacao', _ValorCampo);
+          5: ; //IGNORA
+        else
+          ExceptionValorInvalidoCampo('CodigoModoPrestacao. Valores aceitos: ' + #13#10 +
+            '0 - Desconhecido (tipo não informado na nota de origem);' + #13#10 +
+            '1 - Transfronteiriço;' + #13#10 +
+            '2 - Consumo no Brasil;' + #13#10 +
+            '3 - Movimento Temporário de Pessoas Físicas;' + #13#10 +
+            '4 - Consumo no Exterior;');
+        end;
+
+        _ValorCampo := Trim(CampoTecno('CodigoVinculoPrestacao'));
+        case AnsiIndexText(_ValorCampo, ['0', '1', '2', '3', '4', '5', '6', '']) of
+          0, 1, 2, 3, 4, 5, 6: SetarCampoValor('vincPrest', _ValorCampo);
+          7: ; //IGNORA
+        else
+          ExceptionValorInvalidoCampo('CodigoVinculoPrestacao. Valores aceitos: ' + #13#10 +
+            '0 - Sem vínculo com o tomador/ Prestador' + #13#10 +
+            '1 - Controlada;' + #13#10 +
+            '2 - Controladora;' + #13#10 +
+            '3 - Coligada;' + #13#10 +
+            '4 - Matriz;' + #13#10 +
+            '5 - Filial ou sucursal;' + #13#10 +
+            '6 - Outro vínculo;');
+        end;
+
+        SetarCampoValorTamanho('tpMoeda', CampoTecno('TipoMoedaEstrangeira'), 3);
+        SetarCampoValorCurrency('vServMoeda', CampoTecno('ValorServicosEstrangeiro'), False);
+
+        SetarCampoValorTamanho('mecAFComexP', CampoTecno('TipoFomentoPrestador'), 2);
+        SetarCampoValorTamanho('mecAFComexT', CampoTecno('TipoFomentoTomador'), 2);
+
+        _ValorCampo := Trim(CampoTecno('TipoMovimentacaoBens'));
+        case AnsiIndexText(_ValorCampo, ['0', '1', '2', '3', '']) of
+          0, 1, 2, 3: SetarCampoValor('movTempBens', _ValorCampo);
+          4: ; //IGNORA
+        else
+          ExceptionValorInvalidoCampo('TipoMovimentacaoBens. Valores aceitos: ' + #13#10 +
+            '0 - Desconhecido (tipo não informado na nota de origem);' + #13#10 +
+            '1 - Não;' + #13#10 +
+            '2 - Vinculada - Declaração de Importação;' + #13#10 +
+            '3 - Vinculada - Declaração de Exportação;');
+        end;
+
+        SetarCampoValorTamanho('nDI', CampoTecno('NumeroDeclaracaoImp'), 2);
+        SetarCampoValorTamanho('nRE', CampoTecno('NumeroRegistroExp'), 2);
+
+        _ValorCampo := Trim(CampoTecno('TipoMDIC'));
+        case AnsiIndexText(_ValorCampo, ['0', '1', '']) of
+          0, 1: SetarCampoValor('mdic', _ValorCampo);
+          2: ; //IGNORA
+        else
+          ExceptionValorInvalidoCampo('TipoMDIC. Valores aceitos: ' + #13#10 +
+            '0 - Não enviar para o MDIC;' + #13#10 +
+            '1 - Enviar para o MDIC;');
+        end;
+
+        if CampoTecno('CodigoObra') <> '' then
+          SetarCampoValorTamanho('cObra', CampoTecno('CodigoObra'), 30)
+        else if CampoTecno('CodigoInscImobFisc') <> '' then 
+          SetarCampoValorTamanho('inscImobFisc', CampoTecno('CodigoInscImobFisc'), 30)
+        else
+        begin
+          if CampoTecno('CepObra') <> '' then 
+            SetarCampoValorTamanho('CEPServicoObra', CampoTecno('CepObra'), 8)
+          else 
+          begin 
+            SetarCampoValorTamanho('cEndPostServicoObra', CampoTecno('CodigoEnderecoObra'), 11);
+            SetarCampoValorTamanho('xCidadeServicoObra', CampoTecno('NomeCidadeObra'), 60);
+            SetarCampoValorTamanho('xEstProvRegServicoObra', CampoTecno('RegiaoObra'), 60);
+          end;
+          SetarCampoValorTamanho('xLgrServicoObra', CampoTecno('EnderecoObra'), 255);
+          SetarCampoValorTamanho('nroServicoObra', CampoTecno('NumeroEndObra'), 60);
+          SetarCampoValorTamanho('xCplServicoObra', CampoTecno('ComplementoObra'), 156);
+          SetarCampoValorTamanho('xBairroServicoObra', CampoTecno('BairroObra'), 60);
+        end;
+
+
+        if Trim(CampoTecno('IdEvento')) <> '' then
+        begin
+          SetarCampoValorTamanho('idEvento', CampoTecno('IdEvento'), 30);
+
+          SetarCampoValorTamanho('descEvento', CampoTecno('DescricaoEvento'), 255);
+
+          _ValorCampo := Trim(CampoTecno('DataInicioEvento'));
+          if _ValorCampo <> '' then
+            _ValorCampo := FormatAnyDateTime(_ValorCampo, 'YYYY-MM-DD');
+
+          SetarCampoValorTamanho('dtIniEvento', _ValorCampo, 10);
+
+          _ValorCampo := Trim(CampoTecno('DataFimEvento'));
+          if _ValorCampo <> '' then
+            _ValorCampo := FormatAnyDateTime(_ValorCampo, 'YYYY-MM-DD');
+
+          SetarCampoValorTamanho('dtFimEvento', _ValorCampo, 10);
+
+          SetarCampoValorTamanho('CEPServicoEvento', CampoTecno('CepServicoEvento'), 8);
+          SetarCampoValorTamanho('cEndPostServicoEvento', CampoTecno('CodigoEnderecoServEvento'), 11);
+          SetarCampoValorTamanho('xCidadeServicoEvento', CampoTecno('NomeCidadeServEvento'), 60);
+          SetarCampoValorTamanho('xEstProvRegServicoEvento', CampoTecno('RegiaoServEvento'), 60);
+          SetarCampoValorTamanho('xLgrServicoEvento', CampoTecno('EnderecoServEvento'), 255);
+          SetarCampoValorTamanho('nroServicoEvento', CampoTecno('NumeroServEvento'), 60);
+          SetarCampoValorTamanho('xCplServicoEvento', CampoTecno('ComplementoServEvento'), 156);
+          SetarCampoValorTamanho('xBairroServicoEvento', CampoTecno('BairroServEvento'), 60);
+        end;
+
+        if Trim(CampoTecno('TipoVeiculoCobranca')) <> '' then
+        begin
+          SetarCampoValorTamanho('categVeic', CampoTecno('TipoVeiculoCobranca'), 2);
+
+          _ValorCampo := Trim(CampoTecno('TipoVeiculoCobranca'));
+          case AnsiIndexText(_ValorCampo, ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10']) of
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9: SetarCampoValor('categVeic', '0' + _ValorCampo);
+            10: SetarCampoValor('categVeic', _ValorCampo);
+          else
+            ExceptionValorInvalidoCampo('TipoVeiculoCobranca. Valores aceitos: ' + #13#10 +
+              '0 - Categoria de Veículos (tipo não informado na nota de origem);' + #13#10 +
+              '1 - Automóvel, caminhonete e furgão;' + #13#10 +
+              '2 - Caminhão leve, ônibus, caminhão trator e furgão;' + #13#10 +
+              '3 - Automóvel e caminhonete com semireboque;' + #13#10 +
+              '4 - Caminhão, caminhão-trator, caminhão-trator com semi-reboque e ônibus;' + #13#10 +
+              '5 - Automóvel e caminhonete com reboque;' + #13#10 +
+              '6 - Caminhão com reboque;' + #13#10 +
+              '7 - Caminhão trator com semi-reboque;' + #13#10 +
+              '8 - Motocicletas, motonetas e bicicletas motorizadas;' + #13#10 +
+              '9 - Veículo especial;' + #13#10 +
+              '10 - Veículo Isento;');
+          end;
+
+          _ValorCampo := Trim(CampoTecno('TipoRodagem'));
+          case AnsiIndexText(_ValorCampo, ['', '1', '2']) of
+            0: ; //IGNORA
+            1: SetarCampoValor('rodagem', _ValorCampo);
+            2: SetarCampoValor('rodagem', _ValorCampo);
+          else
+            ExceptionValorInvalidoCampo('TipoRodagem. Valores aceitos: ' + #13#10 +
+              '1 - Simples;' + #13#10 +
+              '2 - Dupla;');
+          end;
+
+          _ValorCampo := Trim(CampoTecno('SentidoGeografico'));
+          if _ValorCampo <> '' then
+          begin
+            _ValorInt := StrToInt(_ValorCampo);
+            if _ValorInt < 360 then
+              SetarCampoValorTamanho('sentido', _ValorCampo, 3)
+            else
+              ExceptionValorInvalidoCampo('SentidoGeografico. Valores aceitos: 0 a 359;');
+          end;
+
+          SetarCampoValorTamanho('nEixos', CampoTecno('NumeroEixos'), 2);
+          SetarCampoValorTamanho('placa', CampoTecno('PlacaVeiculo'), 7);
+          SetarCampoValorTamanho('codAcessoPed', CampoTecno('CodigoAcessoPedido'), 10);
+          SetarCampoValorTamanho('codContrato', CampoTecno('CodigoContratoPedido'), 4);
+        end;
+
+        SetarCampoValorTamanho('idDocTec', CampoTecno('IdDocTec'), 40);
+        SetarCampoValorTamanho('docRef', CampoTecno('DocReferencia'), 255);
+        SetarCampoValorTamanho('xInfComp', CampoTecno('InformacoesComplementares'), 2000);
+
+        // Valores
+        SetarCampoValorCurrency('vReceb', CampoTecno('ValorServicosIntermediario'), False);
+        SetarCampoValorCurrency('vServ', CampoTecno('ValorServicos'), False);
+
+        SetarCampoValorCurrency('vDescIncond', CampoTecno('DescontoIncondicionado'), False);
+        SetarCampoValorCurrency('vDescCond', CampoTecno('DescontoCondicionado'), False);
+
+        SetarCampoValorCurrency('pDR', CampoTecno('ValorPercDeducoes'), False);
+        SetarCampoValorCurrency('vDR', CampoTecno('ValorDeducoes'), False);
+
+        _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_DEDUCOES);
+        _DsTecnoAtual.First;
+        while not _DsTecnoAtual.Eof do
+        begin
+          _DsCidadeAtual := Datasets.GetDataSetByName(DSCIDADE_DEDUCOES);
+          _DsCidadeAtual.Append;
+
+          //inf documento deducao/reducao Base calculo
+          if (Trim(CampoTecno('ChaveNFSeDeducoes')) <> '') or (Trim(CampoTecno('ChaveNFeDeducoes')) <> '') then
+          begin
+            SetarCampoValorTamanho('chNFSe', CampoTecno('ChaveNFSeDeducoes'), 50);
+            SetarCampoValorTamanho('chNFe', CampoTecno('ChaveNFeDeducoes'), 44);
+          end
+          else if Trim(CampoTecno('CodigoVerificacaoDeducoes')) <> '' then
+          begin
+            SetarCampoValorTamanho('cMunNFSeMun', CampoTecno('CodigoCidadeNFSe'), 7);
+            SetarCampoValorTamanho('nNFSeMun', CampoTecno('NumeroNFSeDeducoes'), 15);
+            SetarCampoValorTamanho('cVerifNFSeMun', CampoTecno('CodigoVerificacaoDeducoes'), 9);
+          end
+          else
+          begin
+            SetarCampoValorTamanho('nNFSeMun', CampoTecno('NumeroNFSeDeducoes'), 7);
+            SetarCampoValorTamanho('modNFS', CampoTecno('ModeloNFSeDeducoes'), 15);
+            SetarCampoValorTamanho('serieNFS', CampoTecno('SerieNFSeDeducoes'), 9);
+            SetarCampoValorTamanho('nDocFisc', CampoTecno('IdentificadorDocFiscal'), 255);
+            SetarCampoValorTamanho('nDoc', CampoTecno('IdentificadorDoc'), 255);
+            SetarCampoValorTamanho('dtEmiDoc', CampoTecno('DataDocDeducoes'), 10);
+            SetarCampoValorCurrency('vDedutivelRedutivel', CampoTecno('ValorTotalDoc'), False);
+            SetarCampoValorCurrency('vDeducaoReducao', CampoTecno('ValorDeducoesDoc'), False);
+
+            _ValorCampo := Trim(CampoTecno('TipoDeducaoReducao'));
+            case AnsiIndexText(_ValorCampo, ['', '1', '2', '3', '4', '5', '6', '7', '8', '9']) of
+              0: ; //IGNORA
+              1, 2, 3, 4, 5, 6, 7, 8: SetarCampoValor('tpDedRed', '0' + _ValorCampo);
+              9:
+              begin
+                SetarCampoValor('tpDedRed', '9' + _ValorCampo);
+                SetarCampoValorTamanho('xDescOutDed', CampoTecno('DescricaoOutrasDeducoes'), 150);
+              end
+            else
+              ExceptionValorInvalidoCampo('TipoTributacaoIss. Valores aceitos: ' + #13#10 +
+                '1 – Alimentação e bebidas/frigobar; ' + #13#10 +
+                '2 – Materiais;' + #13#10 +
+                '3 – Produção externa;' + #13#10 +
+                '4 – Reembolso de despesas;' + #13#10 +
+                '5 – Repasse consorciado;' + #13#10 +
+                '6 – Repasse plano de saúde;' + #13#10 +
+                '7 – Serviços;' + #13#10 +
+                '8 – Subempreitada de mão de obra;' + #13#10 +
+                '9 – Outras deduções;');
+            end;
+          end;
+
+          _ValorCampo := Trim(RemoveMascara(CampoTecno('CpfCnpjFornecedor')));
+          case Length(_ValorCampo) of
+            0: ; //IGNORA
+            11: SetarCampoValor('CPFFornecedor', _ValorCampo);
+            14: SetarCampoValor('CNPJFornecedor', _ValorCampo);
+          else
+          begin
+            if Trim(CampoTecno('NifFornecedor')) <> '' then
+              SetarCampoValorTamanho('NIFFornecedor', CampoTecno('NifFornecedor'), 40)
+            else if Trim(CampoTecno('CodigoNifFornecedor')) <> '' then
+              SetarCampoValorTamanho('cNaoNIFFornecedor', CampoTecno('CodigoNifFornecedor'), 1)
+            else
+              ExceptionValorInvalidoCampo('CpfCnpjFornecedor. Valores aceitos: 11 - CPF, 14 - CNPJ');
+          end;
+          end;
+
+          SetarCampoValorTamanho('CAEPFFornecedor', CampoTecno('NumeroCAEPFFornecedor'), 14);
+          SetarCampoValorTamanho('IMFornecedor', CampoTecno('InscricaoMunicipalFornecedor'), 15);
+          SetarCampoValorTamanho('xNomeFornecedor', CampoTecno('RazaoSocialFornecedor'), 150);
+
+          _ValorCampo := Trim(RemoveMascara(CampoTecno('CodigoCidadeFornecedor')));
+          if _ValorCampo = '9999999' then
+          begin
+            SetarCampoValorTamanho('cPaisFornecedor', CampoTecno('PaisFornecedor'), 2);
+            SetarCampoValorTamanho('cEndPostFornecedor', CampoTecno('CepFornecedor'), 11);
+            SetarCampoValorTamanho('xCidadeFornecedor', CampoTecno('DescricaoCidadeFornecedor'), 60);
+            SetarCampoValorTamanho('xEstProvRegFornecedor', CampoTecno('RegiaoFornecedor'), 60);
+          end
+          else
+          begin
+            SetarCampoValorTamanho('cMunFornecedor', _ValorCampo, 7);
+            SetarCampoValorTamanho('CEPFornecedor', RemoveMascara(CampoTecno('CepFornecedor')), 8);
+            SetarCampoValorTamanho('xLgrFornecedor', CampoTecno('EnderecoFornecedor'), 255);
+            SetarCampoValorTamanho('nroFornecedor', CampoTecno('NumeroFornecedor'), 60);
+            SetarCampoValorTamanho('xCplFornecedor', CampoTecno('ComplementoFornecedor'), 156);
+            SetarCampoValorTamanho('xBairroFornecedor', CampoTecno('BairroFornecedor'), 60);
+          end;
+
+          SetarCampoValorTamanho('foneFornecedor', CampoTecno('TelefoneFornecedor'), 20);
+          SetarCampoValorTamanho('emailFornecedor', CampoTecno('EmailFornecedor'), 80);
+
+          _DsCidadeAtual.Post;
+          _DsTecnoAtual.Next;
+        end;
+
+        _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_NOTA);
+        _DsCidadeAtual := Datasets.GetDataSetByName(DSCIDADE_NOTA);
+        _DsCidadeAtual.Append;
+
+        _ValorCampo := Trim(CampoTecno('TipoTributacaoIss'));
+        case AnsiIndexText(_ValorCampo, ['1', '2', '3', '4']) of
+          0, 1, 3: SetarCampoValor('tribISSQN', _ValorCampo);
+          2:
+          begin
+            SetarCampoValor('tribISSQN', _ValorCampo);
+            SetarCampoValorTamanho('cPaisResult', CampoTecno('CodigoPaisPrestacao'), 2);
+          end;
+        else
+          ExceptionValorInvalidoCampo('TipoTributacaoIss. Valores aceitos: ' + #13#10 +
+            '1 - Operação tributável;' + #13#10 +
+            '2 - Imunidade;' + #13#10 +
+            '3 - Exportação de serviço;' + #13#10 +
+            '4 - Não Incidência;');
+        end;
+
+        SetarCampoValorTamanho('nBM', CampoTecno('NumeroBeneficioMunicipal'), 14);
+        SetarCampoValorCurrency('vRedBCBM', CampoTecno('ValorReducaoBCBM'), False);
+        SetarCampoValorCurrency('pRedBCBM', CampoTecno('ValorPercReducaoBCBM'), False);
+
+        _ValorCampo := Trim(CampoTecno('TipoExigibilidadeSuspensa'));
+        case AnsiIndexText(_ValorCampo, ['', '1', '2']) of
+          0: ; // IGNORA
+          1, 2: SetarCampoValor('tpSusp', _ValorCampo);
+        else
+          ExceptionValorInvalidoCampo('TipoExigibilidadeSuspensa. Valores aceitos: ' + #13#10 +
+            '1 - Exigibilidade do ISSQN Suspensa por Decisão Judicial;' + #13#10 +
+            '2 - Exigibilidade do ISSQN Suspensa por Processo Administrativo;');
+        end;
+
+        SetarCampoValorTamanho('nProcesso', CampoTecno('NumeroProcessoSuspensao'), 30);
+
+        _ValorCampo := Trim(CampoTecno('TipoImunidade'));
+        case AnsiIndexText(_ValorCampo, ['0', '1', '2', '3', '4', '5', '']) of
+          0, 1, 2, 3, 4, 5: SetarCampoValor('tpImunidade', _ValorCampo);
+          6: ; //IGNORA
+        else
+          ExceptionValorInvalidoCampo('TipoImunidade. Valores aceitos: ' + #13#10 +
+            '0 - Imunidade (tipo não informado na nota de origem);' + #13#10 +
+            '1 - Patrimônio, renda ou serviços, uns dos outros (CF88, Art 150, VI, a);' + #13#10 +
+            '2 - Templos de qualquer culto (CF88, Art 150, VI, b);' + #13#10 +
+            '3 - Patrimônio, renda ou serviços dos partidos políticos, inclusive suas fundações, das entidades sindicais dos trabalhadores, das instituições de educação e de assistência social, sem fins lucrativos, atendidos os requisitos da lei (CF88, Art 150, VI, c);' + #13#10 +
+            '4 - Livros, jornais, periódicos e o papel destinado a sua impressão (CF88, Art 150, VI, d);' + #13#10 +
+            '5 - Fonogramas e videofonogramas musicais produzidos no Brasil contendo obras musicais ou literomusicais de autores brasileiros e/ou obras em geral interpretadas por artistas brasileiros bem como os suportes materiais ou arquivos digitais que os contenham, salvo na etapa de replicação industrial de mídias ópticas de leitura a laser. (CF88, Art 150, VI, e);');
+        end;
+
+        SetarCampoValorCurrency('pAliq', CampoTecno('AliquotaISS'), False);
+
+        _ValorCampo := Trim(CampoTecno('TipoRetIss'));
+        case AnsiIndexText(_ValorCampo, ['1', '2', '3']) of
+          0, 1, 2: SetarCampoValor('tpRetISSQN', _ValorCampo);
+        else
+          ExceptionValorInvalidoCampo('TipoRetIss. Valores aceitos: ' + #13#10 +
+            '1 - Não Retido;' + #13#10 +
+            '2 - Retido pelo Tomador;' + #13#10 +
+            '3 - Retido pelo Intermediario;');
+        end;
+
+        _ValorCampo := Trim(CampoTecno('TipoCST'));
+        case AnsiIndexText(_ValorCampo, ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '']) of
+          0, 1, 2, 3, 4, 5, 6, 7, 8, 9: SetarCampoValor('CST', '0' + _ValorCampo);
+          10: ; //IGNORA
+        else
+          ExceptionValorInvalidoCampo('TipoCST. Valores aceitos: ' + #13#10 +
+            '0 – Nenhum;' + #13#10 +
+            '1 – Operação Tributável com Alíquota Básica;' + #13#10 +
+            '2 – Operação Tributável com Alíquota Diferenciada;' + #13#10 +
+            '3 – Operação Tributável com Alíquota por Unidade de Medida de Produto;' + #13#10 +
+            '4 – Operação Tributável monofásica - Revenda a Alíquota Zero;' + #13#10 +
+            '5 – Operação Tributável por Substituição Tributária;' + #13#10 +
+            '6 – Operação Tributável a Alíquota Zero;' + #13#10 +
+            '7 – Operação Tributável da Contribuição;' + #13#10 +
+            '8 – Operação sem Incidência da Contribuição;' + #13#10 +
+            '9 – Operação com Suspensão da Contribuição;');
+        end;
+
+        case AnsiIndexText(_ValorCampo, ['4', '6']) of
+          0, 1: 
+            begin
+              SetarCampoValor('pAliqPis', '0.00');
+              SetarCampoValor('pAliqCofins', '0.00');
+              SetarCampoValor('vPis', '0.00');
+              SetarCampoValor('vCofins', '0.00');
+            end; 
+        end; 
+
+        SetarCampoValorCurrency('vBCPisCofins', CampoTecno('ValorBCPisCofins'), False);
+        SetarCampoValorCurrency('pAliqPis', CampoTecno('AliquotaPis'), False);
+        SetarCampoValorCurrency('pAliqCofins', CampoTecno('AliquotaCofins'), False);
+        SetarCampoValorCurrency('vPis', CampoTecno('ValorPis'), False);
+        SetarCampoValorCurrency('vCofins', CampoTecno('ValorCofins'), False);
+
+        _ValorCampo := Trim(CampoTecno('TipoRetPisCofins'));
+        case AnsiIndexText(_ValorCampo, ['', '1', '2']) of
+          0: ; //IGNORA
+          1, 2: SetarCampoValor('tpRetPisCofins', _ValorCampo);
+        else
+          ExceptionValorInvalidoCampo('TipoRetPisCofins. Valores aceitos: ' + #13#10 +
+            '1 - Retido;' + #13#10 +
+            '2 - Não Retido;');
+        end;
+
+        SetarCampoValorCurrency('vRetCP', CampoTecno('ValorCP'), False);
+        SetarCampoValorCurrency('vRetIRRF', CampoTecno('ValorIRRF'), False);
+        SetarCampoValorCurrency('vRetCSLL', CampoTecno('ValorCSLL'), False);
+
+        if (not VerificaVazioOuZero(CampoTecno('ValorTotalTribFed'))) or
+           (not VerificaVazioOuZero(CampoTecno('ValorTotalTribEst'))) or
+           (not VerificaVazioOuZero(CampoTecno('ValorTotalTribMun'))) then
+        begin
+          SetarCampoValorCurrency('vTotTribFed', CampoTecno('ValorTotalTribFed'), True);
+          SetarCampoValorCurrency('vTotTribEst', CampoTecno('ValorTotalTribEst'), True);
+          SetarCampoValorCurrency('vTotTribMun', CampoTecno('ValorTotalTribMun'), True);
+        end
+        else if (not VerificaVazioOuZero(CampoTecno('ValorPercTotalTribFed'))) or
+                (not VerificaVazioOuZero(CampoTecno('ValorPercTotalTribEst'))) or
+                (not VerificaVazioOuZero(CampoTecno('ValorPercTotalTribMun'))) then
+        begin
+          SetarCampoValorCurrency('pTotTribFed', CampoTecno('ValorPercTotalTribFed'), True);
+          SetarCampoValorCurrency('pTotTribEst', CampoTecno('ValorPercTotalTribEst'), True);
+          SetarCampoValorCurrency('pTotTribMun', CampoTecno('ValorPercTotalTribMun'), True);
+        end
+        else if not VerificaVazioOuZero(CampoTecno('ValorPercAliqSN')) then
+          SetarCampoValorCurrency('pTotTribSN', CampoTecno('ValorPercAliqSN'), False)
+        else
+          SetarCampoValor('indTotTrib', '0');
+
+        // Processar campos IBSCBS apenas para versao 1.01
+        if _VersaoManual = '1.01' then
+        begin
+          // Criar grupo IBSCBS se houver dados
+          if (Trim(CampoTecno('FinalidadeNFSe')) <> '') or
+             (Trim(CampoTecno('CodigoOperacao')) <> '') or
+             (Trim(CampoTecno('IndicadorDestinatario')) <> '') then
+          begin
+            // Campos basicos IBSCBS
+            _ValorCampo := Trim(CampoTecno('FinalidadeNFSe'));
+            if _ValorCampo <> '' then
+              SetarCampoValorTamanho('finNFSe', _ValorCampo, 1);
+
+            _ValorCampo := Trim(CampoTecno('OperacaoPessoal'));
+            if _ValorCampo <> '' then
+              SetarCampoValorTamanho('indFinal', _ValorCampo, 1);
+
+            _ValorCampo := Trim(CampoTecno('CodigoOperacao'));
+            if _ValorCampo <> '' then
+              SetarCampoValorTamanho('cIndOp', _ValorCampo, 6);
+
+            _ValorCampo := Trim(CampoTecno('TipoOperacao'));
+            if _ValorCampo <> '' then
+              SetarCampoValorTamanho('tpOper', _ValorCampo, 1);
+
+            _ValorCampo := Trim(CampoTecno('TipoEnteGovernamental'));
+            if _ValorCampo <> '' then
+              SetarCampoValorTamanho('tpEnteGov', _ValorCampo, 1);
+
+            // Indicador Destinatario
+            _ValorCampo := Trim(CampoTecno('IndicadorDestinatario'));
+            if _ValorCampo <> '' then
+              SetarCampoValorTamanho('indDest', _ValorCampo, 1);
+
+            // Destinatario IBSCBS
+            _ValorCampo := Trim(RemoveMascara(CampoTecno('CpfCnpjDestinatario')));
+            case Length(_ValorCampo) of
+              11: SetarCampoValor('CPFDestinatario', _ValorCampo);
+              14: SetarCampoValor('CNPJDestinatario', _ValorCampo);
+            else
+            begin
+              _ValorCampo := Trim(CampoTecno('NifDestinatario'));
+              if _ValorCampo <> '' then
+                SetarCampoValorTamanho('NIFDestinatario', _ValorCampo, 40)
+              else
+              begin
+                _ValorCampo := Trim(CampoTecno('MotivoNaoNifDestinatario'));
+                if _ValorCampo <> '' then
+                  SetarCampoValorTamanho('cNaoNIFDestinatario', _ValorCampo, 1);
+              end;
+            end;
+			end;
+
+            SetarCampoValorTamanho('xNomeDestinatario', CampoTecno('RazaoSocialDestinatario'), 150);
+
+            // Endereco Destinatario - usar PaisDestinatario para determinar se e exterior
+            _ValorCampo := Trim(CampoTecno('PaisDestinatario'));
+            if (_ValorCampo <> '') and (_ValorCampo <> '1058') then
+            begin
+              // Endereco Exterior (pais diferente de 1058 - Brasil)
+              SetarCampoValorTamanho('cPaisDestinatario', _ValorCampo, 2);
+              SetarCampoValorTamanho('cEndPostDestinatario', CampoTecno('CodigoPostalDestinatario'), 11);
+              SetarCampoValorTamanho('xCidadeDestinatario', CampoTecno('DescricaoCidadeDestinatario'), 60);
+              SetarCampoValorTamanho('xEstProvRegDestinatario', CampoTecno('UfDestinatario'), 60);
+            end
+            else
+            begin
+              // Endereco Nacional
+              _ValorCampo := Trim(CampoTecno('CodigoCidadeDestinatario'));
+              if _ValorCampo <> '' then
+                SetarCampoValorTamanho('cMunDestinatario', _ValorCampo, 7);
+              SetarCampoValorTamanho('CEPDestinatario', RemoveMascara(CampoTecno('CepDestinatario')), 8);
+            end;
+
+            SetarCampoValorTamanho('xLgrDestinatario', CampoTecno('EnderecoDestinatario'), 255);
+            SetarCampoValorTamanho('nroDestinatario', CampoTecno('NumeroDestinatario'), 60);
+            SetarCampoValorTamanho('xCplDestinatario', CampoTecno('ComplementoDestinatario'), 156);
+            SetarCampoValorTamanho('xBairroDestinatario', CampoTecno('BairroDestinatario'), 60);
+            SetarCampoValorTamanho('foneDestinatario', RemoveMascara(CampoTecno('TelefoneDestinatario')), 20);
+            SetarCampoValorTamanho('emailDestinatario', CampoTecno('EmailDestinatario'), 80);
+
+            // Imovel IBSCBS
+            _ValorCampo := Trim(CampoTecno('InscricaoFiscalImovel'));
+            if _ValorCampo <> '' then
+            begin
+              SetarCampoValorTamanho('inscImobFiscImovel', _ValorCampo, 30);
+
+              // Se tiver CIB, usar CIB; senao usar endereco
+              _ValorCampo := Trim(CampoTecno('CodigoCIB'));
+              if _ValorCampo <> '' then
+              begin
+                SetarCampoValorTamanho('cCIBImovel', _ValorCampo, 8);
+              end
+              else
+              begin
+                // Endereco do Imovel
+                _ValorCampo := Trim(CampoTecno('CodigoCidadeImovel'));
+                if (_ValorCampo <> '') and (_ValorCampo <> '9999999') then
+                begin
+                  // Endereco Nacional
+                  SetarCampoValorTamanho('CEPImovel', RemoveMascara(CampoTecno('CepImovel')), 8);
+                end
+                else
+                begin
+                  // Endereco Exterior
+                  SetarCampoValorTamanho('cEndPostImovel', CampoTecno('CodigoPostalImovel'), 11);
+                  SetarCampoValorTamanho('xCidadeImovel', CampoTecno('DescricaoCidadeImovel'), 60);
+                  SetarCampoValorTamanho('xEstProvRegImovel', CampoTecno('UfImovel'), 60);
+                end;
+
+                SetarCampoValorTamanho('xLgrImovel', CampoTecno('EnderecoImovel'), 255);
+                SetarCampoValorTamanho('nroImovel', CampoTecno('NumeroImovel'), 60);
+                SetarCampoValorTamanho('xCplImovel', CampoTecno('ComplementoImovel'), 156);
+                SetarCampoValorTamanho('xBairroImovel', CampoTecno('BairroImovel'), 60);
+              end;
+            end;
+
+            // Tributacao IBSCBS
+            _ValorCampo := Trim(CampoTecno('SituacaoTributariaIbsCbs'));
+            if _ValorCampo <> '' then
+            begin
+              SetarCampoValorTamanho('CSTIbsCbs', _ValorCampo, 3);
+              SetarCampoValorTamanho('cClassTrib', CampoTecno('ClassificacaoTributariaIbsCbs'), 6);
+              SetarCampoValorTamanho('cCredPres', CampoTecno('CodigoCreditoPresumidoIbsCbs'), 2);
+
+              // Regime Regular
+              SetarCampoValorTamanho('sitTribRegular', CampoTecno('SituacaoTributariaRegularIbsCbs'), 3);
+              SetarCampoValorTamanho('cClassTribReg', CampoTecno('ClassifTributariaRegularIbsCbs'), 6);
+
+              // Diferimento
+              SetarCampoValorCurrency('pDifUF', CampoTecno('ValorPercDiferimentoEstadual'), False);
+              SetarCampoValorCurrency('pDifMun', CampoTecno('ValorPercDiferimentoMunicipal'), False);
+              SetarCampoValorCurrency('pDifCBS', CampoTecno('ValorPercDiferimentoCbs'), False);
+            end;
+
+            // NFSe Referenciada IBSCBS
+            _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_NFSEREFERENCIA);
+            _DsTecnoAtual.First;
+            while not _DsTecnoAtual.Eof do
+            begin
+              _DsCidadeAtual := Datasets.GetDataSetByName(DSCIDADE_NFSEREFERENCIA);
+              _DsCidadeAtual.Append;
+
+              SetarCampoValorTamanho('refNFSe', CampoTecno('ChaveNFSe'), 50);
+
+              _DsCidadeAtual.Post;
+              _DsTecnoAtual.Next;
+            end;
+
+            _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_NOTA);
+            _DsCidadeAtual := Datasets.GetDataSetByName(DSCIDADE_NOTA);
+
+            // Documentos Referenciados para reembolso/repasse/ressarcimento IBSCBS
+            _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_DOCUMENTOREFERENCIADO);
+            _DsTecnoAtual.First;
+            while not _DsTecnoAtual.Eof do
+            begin
+              _DsCidadeAtual := Datasets.GetDataSetByName(DSCIDADE_DOCUMENTOREFERENCIADO);
+              _DsCidadeAtual.Append;
+
+              // Verificar qual tipo de documento preencher (xs:choice - apenas 1 dos 3 grupos)
+              _ValorCampo := Trim(CampoTecno('ChaveDFe'));
+              if _ValorCampo <> '' then
+              begin
+                SetarCampoValorTamanho('tipoChaveDFe', CampoTecno('TipoChaveDFe'), 1);
+                SetarCampoValorTamanho('xTipoChaveDFe', CampoTecno('DescricaoTipoChaveDFe'), 255);
+                SetarCampoValorTamanho('chaveDFe', _ValorCampo, 50);
+              end
+              else if Trim(CampoTecno('NumeroDocumentoFiscal')) <> '' then
+              begin
+                SetarCampoValorTamanho('cMunDocFiscal', CampoTecno('MunicipioDocumentoFiscal'), 7);
+                SetarCampoValorTamanho('nDocFiscal', CampoTecno('NumeroDocumentoFiscal'), 255);
+                SetarCampoValorTamanho('xDocFiscal', CampoTecno('DescricaoDocumentoFiscal'), 255);
+              end
+              else if Trim(CampoTecno('NumeroDocumentoNaoFiscal')) <> '' then
+              begin
+                SetarCampoValorTamanho('nDocNaoFiscal', CampoTecno('NumeroDocumentoNaoFiscal'), 255);
+                SetarCampoValorTamanho('xDocNaoFiscal', CampoTecno('DescricaoDocumentoNaoFiscal'), 255);
+              end;
+
+              // Fornecedor do documento (opcional)
+              _ValorCampo := Trim(RemoveMascara(CampoTecno('CpfCnpjFornecedorDocumento')));
+              case Length(_ValorCampo) of
+                14: SetarCampoValor('CNPJFornecedorDocRef', _ValorCampo);
+                11: SetarCampoValor('CPFFornecedorDocRef', _ValorCampo);
+              else
+              begin
+                _ValorCampo := Trim(CampoTecno('NifFornecedorDocumento'));
+                if _ValorCampo <> '' then
+                  SetarCampoValorTamanho('NIFFornecedorDocRef', _ValorCampo, 40)
+                else
+                begin
+                  _ValorCampo := Trim(CampoTecno('CodigoNifFornecedorDocumento'));
+                  if _ValorCampo <> '' then
+                    SetarCampoValorTamanho('cNaoNIFFornecedorDocRef', _ValorCampo, 1);
+                end;
+              end;
+              end;
+
+              SetarCampoValorTamanho('xNomeFornecedorDocRef', CampoTecno('RazaoSocialFornecedorDocumento'), 150);
+
+              SetarCampoValorTamanho('dtEmiDocDedutivel', CampoTecno('DataEmissaoDocumento'), 10);
+              SetarCampoValorTamanho('dtCompDoc', CampoTecno('CompetenciaDocumento'), 10);
+              SetarCampoValorTamanho('tpReeRepRes', CampoTecno('TipoOperacaoDocumento'), 2);
+              SetarCampoValorTamanho('xTpReeRepRes', CampoTecno('DescricaoOperacao'), 150);
+              SetarCampoValorCurrency('vlrReeRepRes', CampoTecno('ValorOperacao'), False);
+
+              _DsCidadeAtual.Post;
+              _DsTecnoAtual.Next;
+            end;
+
+            _DsTecnoAtual := TecnoNFSeDS.GetDataSetByName(DSTECNO_NOTA);
+            _DsCidadeAtual := Datasets.GetDataSetByName(DSCIDADE_NOTA);
+          end;
+        end;
+
+        _DsCidadeAtual.Post;
+        _DsTecnoAtual.Next;
+      end;
+      SetarCamposMunicipio(False);
+    end
+    else
+      Datasets.LoadFromTx2Content(_Tx2.Text);
+  finally
+    _Tx2.Free;
+    _CamposMunicipio.Free;
+    Progress('Arquivo TX2 carregado com Sucesso');
+  end;
+end.

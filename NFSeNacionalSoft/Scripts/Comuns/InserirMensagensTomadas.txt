@@ -1,0 +1,23 @@
+function GetMensagemTomadas(const aValue: string): string;
+  var
+    _ListaMensagens : TStringList;
+    _Mensagem : string;
+  begin
+    try
+      _ListaMensagens := TStringList.Create;
+      _ListaMensagens.LoadFromFile(Params.Values['DiretorioEsquemas'] + 'TecnoNFSe\ListaMensagensTomadas.txt');
+
+      _Mensagem := _ListaMensagens.Values[Params.Values['Cidade']];
+
+      if Trim(_Mensagem) = '' then
+        _Mensagem := _ListaMensagens.Values[Params.Values['Padrao']]; 
+
+      if (Trim(aValue) = '') or (Trim(_Mensagem) = Trim(aValue)) then
+        Result := 'Consulta não retornou nota com o período informado.'
+      else
+        Result := aValue;  
+
+    finally
+      _ListaMensagens.Free;
+    end;
+  end;

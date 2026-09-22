@@ -1,0 +1,46 @@
+{
+  Variaveis externas disponiveis:
+    PathXsd: string;
+    MappingXsdFileName: string;
+    Input: string;
+    Datasets: TspdXSDDataset;
+}
+
+{$I Utils.txt}
+
+var
+  _Xml: string;
+begin
+  _Xml := Input;
+
+  Progress('Carregando configuracoes de XSDDataset.');
+
+  // Detectar versao do XSD
+  if Trim(Params.Values['VersaoManual']) = 'v1.01' then
+    Datasets.XsdFile := PathXsd + 'evento_v1.01.xsd'
+  else
+    Datasets.XsdFile := PathXsd + 'evento_v1.00.xsd';
+
+  Datasets.ConfigSection := 'RETORNO_CANCELAR';
+
+  if Trim(MappingXsdFileName) <> '' then
+    Datasets.MappingFileName := MappingXsdFileName;
+
+  Progress('Criando XSDDataset.');
+  Datasets.CreateXSDDataset;
+  
+  _Xml := StringReplace(_Xml, '<!--CRLF-->', #13#10, [rfReplaceAll]);
+  _Xml := StringReplace(_Xml, '<?xml version="1.0" encoding="utf-8"?>', '', [rfReplaceAll]);
+  
+  if Pos('MensagemRetorno', _Xml) > 0 then
+    Params.Add('XmlErro='+_Xml)
+  else
+  begin
+    _Xml := XmlDeepNodeSearch(_Xml, Datasets.XsdElementName, '//*[local-name()="evento"]');
+    _Xml := UnindentXml(_Xml);
+  
+    Datasets.LoadFromXMLContent(_Xml);
+  end;
+  
+  Progress('XML carregado com sucesso.');
+end.

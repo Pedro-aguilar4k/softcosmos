@@ -1,0 +1,13 @@
+procedure CriarDatasets;
+begin
+  Datasets.ConfigSection := 'ENVIAR';
+  if Trim(Params.Values['ConfigSection']) <> '' then
+    Datasets.ConfigSection := Trim(Params.Values['ConfigSection']);
+    
+  _PastaTecnoNFSe := Params.Values['DiretorioEsquemas'] + 'TecnoNFSe\';
+  if Trim(MappingXsdFileName) <> '' then
+    Datasets.MappingFileName := MappingXsdFileName
+  else
+    RaiseException('Mapping em branco');
+  Datasets.CreateXSDDataset;
+end;
