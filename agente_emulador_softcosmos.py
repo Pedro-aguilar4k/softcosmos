@@ -74,9 +74,16 @@ CONFIG_PADRAO = {
     "limpar_com_novo_apos_imprimir": True,      # Aciona 'Novo[F3]' apos imprimir para deixar a tela limpa
     "tecla_novo": "F3",                        # Atalho padrao do botao Novo no SoftCosmos
     "tempo_espera_inserir_ms": 200,            # Tempo apos apertar '+' para abrir a celula Cód. Produto
-    "tempo_espera_busca_ms": 450,              # Tempo para o SoftCosmos consultar o produto no Firebird apos ENTER
     "tempo_espera_impressao_ms": 400,          # Tempo de conclusao da impressao
     "tempo_espera_novo_ms": 200,               # Tempo para o SoftCosmos limpar o grid com Novo[F3]
+    # --- ESPERA INTELIGENTE (substitui o sleep fixo antigo por polling real) ---
+    "tempo_minimo_busca_ms": 150,              # Piso de seguranca antes de comecar a checar a tela
+    "tempo_maximo_busca_ms": 2000,             # Teto: se o Firebird demorar mais que isso, segue mesmo assim
+    "intervalo_polling_ms": 60,                # Intervalo entre cada checagem da tela durante a espera
+    "verificar_popup_erro": True,              # Detecta caixas de dialogo tipo "Produto nao encontrado"
+    "timeout_popup_erro_ms": 350,              # Janela de tempo para o popup de erro aparecer apos o ENTER
+    "tentativas_localizar_controles": 3,       # Retenta mapear os botoes/grid se nao achar de primeira
+    "intervalo_retentativa_ms": 150,           # Espera entre tentativas de localizar os controles
     "metodo_emulacao": "auto",                 # "auto", "teclado_focado" ou "win32_background"
     "restaurar_foco_apos_impressao": True,     # Nao rouba o foco do operador, devolve imediatamente
     "atalho_impressao": "ENTER",               # Tecla ou botao usado para imprimir no formulario
@@ -234,6 +241,104 @@ def emular_tecla_enter(hwnd):
     user32.PostMessageW(hwnd, WM_KEYUP, VK_RETURN, 0)
 
 # =============================================================================
+# ESPERA INTELIGENTE (POLLING) - SUBSTITUI OS SLEEPS FIXOS ANTIGOS
+# Em vez de "torcer" para o Firebird responder dentro de X ms fixos, o agente
+# fica CHECANDO A TELA DE VERDADE ate perceber que os dados mudaram (ou ate
+# um teto maximo de seguranca, para nunca travar o fluxo indefinidamente).
+# =============================================================================
+
+def obter_texto_dialogo(hwnd_dialogo):
+    """Le o texto estatico (mensagem) de dentro de uma caixa de dialogo padrao do Windows"""
+    textos = []
+    WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def enum_proc(hwnd, lparam):
+        classe = obter_classe_janela(hwnd)
+        if "static" in classe.lower():
+            t = obter_texto_janela(hwnd)
+            if t:
+                textos.append(t)
+        return True
+
+    user32.EnumChildWindows(hwnd_dialogo, WNDENUMPROC(enum_proc), 0)
+    return " ".join(textos) if textos else obter_texto_janela(hwnd_dialogo)
+
+def fechar_janela_popup(hwnd_dialogo):
+    """Fecha um popup de erro/aviso sem deixar o SoftCosmos travado esperando clique manual"""
+    try:
+        user32.PostMessageW(hwnd_dialogo, WM_KEYDOWN, VK_ESCAPE, 0)
+        time.sleep(0.02)
+        user32.PostMessageW(hwnd_dialogo, WM_KEYUP, VK_ESCAPE, 0)
+        time.sleep(0.05)
+        user32.PostMessageW(hwnd_dialogo, 0x0010, 0, 0)  # WM_CLOSE
+    except Exception:
+        pass
+
+def detectar_popup_erro(hwnd_janela_alvo, timeout_ms=350, intervalo_ms=50):
+    """
+    Verifica se surgiu uma caixa de dialogo (classe padrao '#32770') por cima
+    da janela do SoftCosmos - normalmente e como o Delphi exibe mensagens do
+    tipo 'Produto nao encontrado' ou 'Codigo invalido'. Se detectar, captura o
+    texto, fecha o popup e retorna os dados para o agente NAO seguir e imprimir
+    uma etiqueta com dados errados/vazios.
+    """
+    if not IS_WINDOWS:
+        return None
+    decorrido_ms = 0
+    while decorrido_ms <= timeout_ms:
+        hwnd_topo = user32.GetForegroundWindow()
+        if hwnd_topo and hwnd_topo != hwnd_janela_alvo:
+            classe = obter_classe_janela(hwnd_topo)
+            if classe == "#32770" or "message" in classe.lower() or "dialog" in classe.lower():
+                texto = obter_texto_dialogo(hwnd_topo) or obter_texto_janela(hwnd_topo)
+                fechar_janela_popup(hwnd_topo)
+                return {"hwnd": hwnd_topo, "texto": texto or "Aviso/erro exibido pelo SoftCosmos"}
+        time.sleep(intervalo_ms / 1000.0)
+        decorrido_ms += intervalo_ms
+    return None
+
+def aguardar_produto_carregado(hwnd_janela, tempo_minimo_ms=150, tempo_maximo_ms=2000, intervalo_ms=60):
+    """
+    Espera ATIVAMENTE (polling) o SoftCosmos preencher a linha do grid com a
+    descricao/preco do produto apos o ENTER, em vez de usar um sleep fixo:
+    - Aguarda um piso minimo de seguranca.
+    - Depois fica comparando o "retrato" dos textos da janela a cada intervalo.
+    - Assim que detectar mudanca real na tela (dados carregados), segue em frente
+      IMEDIATAMENTE - sem esperar o teto maximo desnecessariamente.
+    - Se o Firebird estiver lento, respeita o teto maximo como rede de seguranca
+      (nunca trava o fluxo esperando para sempre).
+    """
+    time.sleep(tempo_minimo_ms / 1000.0)
+    if not IS_WINDOWS:
+        return True
+
+    tempo_inicial = time.time()
+    assinatura_anterior = None
+    while (time.time() - tempo_inicial) * 1000 < tempo_maximo_ms:
+        controles_atual = mapear_controles_filhos(hwnd_janela)
+        assinatura = tuple(c["titulo"] for c in controles_atual if c["titulo"])
+        if assinatura_anterior is not None and assinatura != assinatura_anterior:
+            time.sleep(0.05)  # pequena margem para o repaint finalizar
+            return True
+        assinatura_anterior = assinatura
+        time.sleep(intervalo_ms / 1000.0)
+    return False  # Atingiu o teto maximo - segue mesmo assim, como rede de seguranca
+
+def localizar_controles_com_retentativa(hwnd_janela, tentativas=3, intervalo_ms=150):
+    """
+    Tenta mapear os controles (botao Novo, botao Imprimir, grid, botao '+') varias
+    vezes antes de desistir. Resolve o caso comum de a janela ainda estar
+    "desenhando" os componentes DevExpress logo apos o SetForegroundWindow.
+    """
+    for tentativa in range(1, tentativas + 1):
+        controles = mapear_controles_filhos(hwnd_janela)
+        if controles:
+            return controles
+        print(f"[AVISO] Tentativa {tentativa}/{tentativas} nao encontrou controles internos, tentando novamente...")
+        time.sleep(intervalo_ms / 1000.0)
+    return mapear_controles_filhos(hwnd_janela)
+
+# =============================================================================
 # ESTRATEGIAS DE EXECUCAO NO SOFTCOSMOS
 # =============================================================================
 
@@ -263,16 +368,29 @@ def executar_emulacao_etiqueta(codigo_produto, copias=1):
         )
 
     print(f"[INFO] Janela identificada: HWND={hwnd_janela} - '{titulo_encontrado}'")
-    controles = mapear_controles_filhos(hwnd_janela)
+    controles = localizar_controles_com_retentativa(
+        hwnd_janela,
+        tentativas=CONFIG.get("tentativas_localizar_controles", 3),
+        intervalo_ms=CONFIG.get("intervalo_retentativa_ms", 150),
+    )
     print(f"[INFO] Controles internos localizados na janela: {len(controles)}")
+    if not controles:
+        return False, (
+            "Nao foi possivel localizar os controles internos (grid, botoes) da janela do SoftCosmos. "
+            "Verifique se a tela 'Gerenciador de Etiquetas' esta totalmente carregada e visivel."
+        )
 
     # Salva a janela que o usuario estava mexendo para restaurar depois
     hwnd_anterior = user32.GetForegroundWindow()
 
     tempo_inserir = CONFIG.get("tempo_espera_inserir_ms", 200) / 1000.0
-    tempo_busca = CONFIG.get("tempo_espera_busca_ms", 450) / 1000.0
     tempo_imp = CONFIG.get("tempo_espera_impressao_ms", 400) / 1000.0
     tempo_novo = CONFIG.get("tempo_espera_novo_ms", 200) / 1000.0
+    tempo_minimo_busca_ms = CONFIG.get("tempo_minimo_busca_ms", 150)
+    tempo_maximo_busca_ms = CONFIG.get("tempo_maximo_busca_ms", 2000)
+    intervalo_polling_ms = CONFIG.get("intervalo_polling_ms", 60)
+    verificar_popup = CONFIG.get("verificar_popup_erro", True)
+    timeout_popup_ms = CONFIG.get("timeout_popup_erro_ms", 350)
 
     # -------------------------------------------------------------------------
     # LOCALIZACAO DOS CONTROLES DO FORMULARIO TFETIQUETAS DO SOFTCOSMOS
@@ -339,7 +457,33 @@ def executar_emulacao_etiqueta(codigo_produto, copias=1):
     # PASSO 3: PRESSIONAR ENTER PARA CARREGAR O PRODUTO E FINALIZAR A LINHA
     print("[INFO] [PASSO 3/5] Pressionando ENTER para o SoftCosmos validar o produto...")
     enviar_tecla_virtual_sendinput(VK_RETURN)
-    time.sleep(tempo_busca)
+
+    # VERIFICACAO DE ERRO: o SoftCosmos pode abrir uma caixa de dialogo tipo
+    # "Produto nao encontrado" ou "Codigo invalido". Se isso acontecer, o agente
+    # PARA o fluxo aqui em vez de clicar 'Imprimir' as cegas com dados errados/vazios.
+    if verificar_popup:
+        popup = detectar_popup_erro(hwnd_janela, timeout_ms=timeout_popup_ms)
+        if popup:
+            print(f"[ERRO] Popup detectado apos ENTER: {popup['texto']}")
+            if CONFIG.get("restaurar_foco_apos_impressao", True) and hwnd_anterior and hwnd_anterior != hwnd_janela:
+                user32.SetForegroundWindow(hwnd_anterior)
+            return False, (
+                f"O SoftCosmos recusou o codigo '{codigo_produto}': {popup['texto']}. "
+                "Nenhuma etiqueta foi impressa."
+            )
+
+    # ESPERA INTELIGENTE: em vez de um sleep fixo, o agente fica checando a tela
+    # ate perceber que os dados do produto (descricao/preco) realmente carregaram,
+    # respeitando um teto maximo de seguranca caso o Firebird esteja lento.
+    print("[INFO] Aguardando o SoftCosmos carregar os dados do produto...")
+    carregou_a_tempo = aguardar_produto_carregado(
+        hwnd_janela,
+        tempo_minimo_ms=tempo_minimo_busca_ms,
+        tempo_maximo_ms=tempo_maximo_busca_ms,
+        intervalo_ms=intervalo_polling_ms,
+    )
+    if not carregou_a_tempo:
+        print("[AVISO] Teto maximo de espera atingido sem detectar mudanca na tela - seguindo mesmo assim.")
 
     # PASSO 4: CLICAR EM 'IMPRIMIR ETIQUETAS'
     print("[INFO] [PASSO 4/5] Clicando no botao 'Imprimir Etiquetas'...")

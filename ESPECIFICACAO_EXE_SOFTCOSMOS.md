@@ -37,9 +37,9 @@ O software alvo é o **`SoftCosmos.exe`**, desenvolvido em **Embarcadero Delphi 
 
 ---
 
-## 3. O CICLO DE EXECUÇÃO EXATO POR BIPAGEM
+## 3. O CICLO DE EXECUÇÃO EXATO POR BIPAGEM (COM ESPERA INTELIGENTE)
 
-Sempre que uma solicitação de impressão chegar (ex: `codigo: "123"`, `copias: 1`), o executável DEVE seguir rigorosamente esta sequência do fluxo:
+Sempre que uma solicitação de impressão chegar (ex: `codigo: "123"`, `copias: 1`), o executável DEVE seguir rigorosamente esta sequência de fluxo. A versão atual **não usa mais tempos fixos "às cegas"** para aguardar o Firebird: ela faz *polling* real da tela e cancela o fluxo se detectar um popup de erro do SoftCosmos.
 
 ```
 [Bip Recebido da Vercel: "123"]
@@ -48,25 +48,48 @@ Sempre que uma solicitação de impressão chegar (ex: `codigo: "123"`, `copias:
 [Passo 1: Salvar HWND Atual] ──> Salva GetForegroundWindow() para devolver o foco depois
            │
            ▼
-[Passo 2: Clicar no botão '+']──> Envia clique no botão '+' da barra de navegação do grid ou tecla VK_INSERT (0x2D).
+[Passo 2: Localizar Controles com Retentativa] ──> Mapeia botão '+', grid, botão Imprimir e botão Novo.
+                                                    Se não achar de primeira, tenta novamente (até 3x,
+                                                    150ms entre tentativas) antes de desistir e reportar erro.
+           │
+           ▼
+[Passo 3: Clicar no botão '+']──> Envia clique no botão '+' da barra de navegação do grid ou tecla VK_INSERT (0x2D).
                                   (Isso cria uma nova linha na tabela e coloca o cursor na célula 'Cód. Produto')
            │ (Aguarda 200ms)
            ▼
-[Passo 3: Digitar em 'Cód. Produto'] ──> Envia o código "123" diretamente na célula selecionada
+[Passo 4: Digitar em 'Cód. Produto'] ──> Envia o código "123" diretamente na célula selecionada
            │ (Aguarda 50ms)
            ▼
-[Passo 4: Pressionar ENTER]  ──> Envia VK_RETURN. O SoftCosmos valida e busca os dados do produto no Firebird
-           │ (Aguarda 450ms para carregar descrição, lote, quantidade)
+[Passo 5: Pressionar ENTER]  ──> Envia VK_RETURN para o SoftCosmos validar/buscar no Firebird
+           │
            ▼
-[Passo 5: Clicar Imprimir]   ──> Clica no botão BitBtn5 ('Imprimir Etiquetas')
+[Passo 5.1: Detectar Popup de Erro] ──> Verifica por até 350ms se surgiu uma caixa de diálogo
+                                        padrão do Windows (classe '#32770', ex: "Produto não
+                                        encontrado"). Se encontrar: lê o texto, FECHA o popup
+                                        (ESC/WM_CLOSE) e ABORTA o fluxo sem clicar em Imprimir.
+           │ (sem popup)
+           ▼
+[Passo 5.2: Espera Inteligente]──> Em vez de sleep fixo, faz polling da janela (a cada 60ms,
+                                   piso de 150ms, teto de 2000ms) até detectar que a descrição/
+                                   preço do produto realmente carregaram na tela.
+           ▼
+[Passo 6: Clicar Imprimir]   ──> Clica no botão BitBtn5 ('Imprimir Etiquetas')
            │ (Aguarda 400ms para enviar ao Spooler da impressora)
            ▼
-[Passo 6: Apertar botão Novo]──> Clica no botão btnIncluirEtiqueta ('Novo[F3]') para limpar a tela para o próximo bip
+[Passo 7: Apertar botão Novo]──> Clica no botão btnIncluirEtiqueta ('Novo[F3]') para limpar a tela para o próximo bip
            │ (Aguarda 200ms)
            ▼
-[Passo 7: Restaurar Foco]    ──> Se o foco mudou, chama SetForegroundWindow(hwnd_anterior)
+[Passo 8: Restaurar Foco]    ──> Se o foco mudou, chama SetForegroundWindow(hwnd_anterior)
                                   (O operador continua trabalhando normalmente sem perceber)
 ```
+
+### 3.1 Por que essa mudança importa
+
+| Problema do fluxo anterior | Solução implementada |
+|---|---|
+| `sleep(450ms)` fixo após o ENTER: se o Firebird demorasse mais, imprimia com dados incompletos; se respondesse mais rápido, perdia tempo à toa | `aguardar_produto_carregado()`: faz polling da tela e segue assim que detecta mudança real, com teto de segurança configurável |
+| Código de produto inválido era ignorado e o agente clicava em "Imprimir" mesmo assim | `detectar_popup_erro()`: identifica a caixa de diálogo de erro do Windows/Delphi, fecha automaticamente e cancela a impressão, retornando o texto do erro |
+| Se a janela ainda estivesse "desenhando" os componentes DevExpress, a busca de controles falhava de primeira | `localizar_controles_com_retentativa()`: tenta novamente (configurável) antes de reportar falha |
 
 ---
 
