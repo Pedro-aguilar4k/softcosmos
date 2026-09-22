@@ -1,0 +1,11 @@
+{
+    "porta_api": 3333,
+    "janela_alvo_titulo": "Gerenciador de Etiquetas",
+    "janela_alvo_classe": "TFEtiquetas",
+    "janela_softcosmos_titulo": "SoftCosmos",
+    "tempo_espera_busca_ms": 400,
+    "tempo_espera_impressao_ms": 300,
+    "metodo_emulacao": "auto",
+    "restaurar_foco_apos_impressao": true,
+    "atalho_impressao": "ENTER"
+}
