@@ -1,35 +1,30 @@
 """
 =============================================================================
-AGENTE DE CONSULTA LOCAL - SOFTCOSMOS / FIREBIRD
+AGENTE DE CONSULTA E ETIQUETAS - SOFTCOSMOS / FIREBIRD
 =============================================================================
-Este script roda em segundo plano no computador onde o SoftCosmos esta aberto.
-Ele se conecta ao banco Firebird local e disponibiliza:
-1. Uma mini API HTTP local (http://localhost:3333/produto/<termo>)
-2. Um modo de consulta rapida no terminal (bipando leitor ou digitando)
-=============================================================================
-Instalacao dos requisitos:
-  pip install fdb flask flask-cors
-=============================================================================
-Como rodar:
-  python agente_consulta_firebird.py
+Projetado para integrar com sistemas de Conferencia, Recebimento e Estoque.
+Disponibiliza os dados de produto para geracao e impressao de etiquetas.
+
+Endpoints:
+1. GET /produto/<codigo_ou_ean>   -> Dados completos do produto em JSON
+2. GET /etiqueta/zpl/<codigo>     -> Comando ZPL pronto para impressora termica
+3. GET /health                    -> Status do servico
 =============================================================================
 """
 
 import os
 import sys
+import unicodedata
 import fdb
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-# CONFIGURACOES DO BANCO DE DADOS FIREBIRD LOCAL
-# O SoftCosmos tipicamente utiliza o Firebird 2.5 ou 3.0 na porta 3050
 DB_CONFIG = {
     'host': os.environ.get('FIREBIRD_HOST', 'localhost'),
     'port': int(os.environ.get('FIREBIRD_PORT', 3050)),
-    # Altere para o caminho real do arquivo .fdb ou .gdb no seu computador/servidor
     'database': os.environ.get('FIREBIRD_DATABASE', r'C:\Softsystem\Banco\COSMOS.FDB'),
     'user': os.environ.get('FIREBIRD_USER', 'SYSDBA'),
     'password': os.environ.get('FIREBIRD_PASSWORD', 'masterkey'),
@@ -37,9 +32,8 @@ DB_CONFIG = {
 }
 
 def get_db_connection():
-    """Cria uma conexao direta somente leitura com o Firebird."""
     try:
-        con = fdb.connect(
+        return fdb.connect(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
             database=DB_CONFIG['database'],
@@ -47,29 +41,32 @@ def get_db_connection():
             password=DB_CONFIG['password'],
             charset=DB_CONFIG['charset']
         )
-        return con
     except Exception as e:
-        print(f"[ERRO DE CONEXAO FIREBIRD] {e}")
+        print(f"[ERRO CONEXAO FIREBIRD] {e}")
         return None
 
+def remover_acentos(texto):
+    if not texto:
+        return ""
+    return ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
+
+def formatar_preco(valor):
+    try:
+        v = float(valor or 0)
+        return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except:
+        return "R$ 0,00"
+
 def buscar_produto(termo_busca):
-    """
-    Realiza busca por:
-    - Codigo de barras (EAN)
-    - Codigo interno (CODORIGINAL / CODIGO)
-    - Descricao / Nome do produto
-    """
     con = get_db_connection()
     if not con:
-        return {"erro": "Nao foi possivel conectar ao banco Firebird do SoftCosmos. Verifique se o caminho do .fdb esta correto."}
+        return {"erro": "Nao foi possivel conectar ao banco Firebird do SoftCosmos."}
 
     cur = con.cursor()
     termo = str(termo_busca).strip().upper()
 
-    # Query generica adaptavel aos campos padrao do SoftCosmos (PRODUTO / MATERIAL)
-    # Testa primeiro na tabela PRODUTO, com fallback para MATERIAL
     sql_queries = [
-        # Query 1: Formato padrao tabela PRODUTO
+        # Query 1: Tabela PRODUTO
         """
         SELECT FIRST 20 
             P.CODIGO, 
@@ -77,13 +74,15 @@ def buscar_produto(termo_busca):
             P.DESCRICAO, 
             P.PRECOVENDA, 
             COALESCE(P.ESTOQUEATUAL, 0) AS ESTOQUE,
-            P.UNIDADE
+            COALESCE(P.UNIDADE, 'UN') AS UNIDADE,
+            COALESCE(P.REFERENCIA, '') AS REFERENCIA,
+            COALESCE(P.NCM, '') AS NCM
         FROM PRODUTO P
         WHERE P.CODBARRAS = ? 
            OR P.CODIGO = ? 
            OR UPPER(P.DESCRICAO) LIKE ?
         """,
-        # Query 2: Formato identificado no arquivo ImportCadProd_DemoExcel.ini (MATERIAL)
+        # Query 2: Tabela MATERIAL
         """
         SELECT FIRST 20 
             M.CODORIGINAL AS CODIGO, 
@@ -91,7 +90,9 @@ def buscar_produto(termo_busca):
             M.DESCRICAO, 
             M.PRECO AS PRECOVENDA, 
             COALESCE(M.ESTOQUE, 0) AS ESTOQUE,
-            'UN' AS UNIDADE
+            'UN' AS UNIDADE,
+            COALESCE(M.REFERENCIA, '') AS REFERENCIA,
+            '' AS NCM
         FROM MATERIAL M
         WHERE M.CODORIGINAL = ? 
            OR UPPER(M.DESCRICAO) LIKE ?
@@ -105,78 +106,81 @@ def buscar_produto(termo_busca):
             cur.execute(sql, (termo, termo, f"%{termo}%") if sql.count('?') == 3 else (termo, f"%{termo}%"))
             rows = cur.fetchall()
             for r in rows:
+                codigo = str(r[0]).strip() if r[0] else ""
+                ean = str(r[1]).strip() if r[1] else codigo
+                desc = str(r[2]).strip() if r[2] else ""
+                preco = float(r[3]) if r[3] else 0.0
+                estoque = float(r[4]) if r[4] else 0.0
+                unidade = str(r[5]).strip() if r[5] else "UN"
+                referencia = str(r[6]).strip() if len(r) > 6 and r[6] else ""
+                ncm = str(r[7]).strip() if len(r) > 7 and r[7] else ""
+
                 produtos.append({
-                    "codigo": str(r[0]).strip() if r[0] else "",
-                    "codigo_barras": str(r[1]).strip() if r[1] else "",
-                    "descricao": str(r[2]).strip() if r[2] else "",
-                    "preco": float(r[3]) if r[3] else 0.0,
-                    "estoque": float(r[4]) if r[4] else 0.0,
-                    "unidade": str(r[5]).strip() if r[5] else "UN"
+                    "codigo": codigo,
+                    "codigo_barras": ean,
+                    "ean": ean,
+                    "descricao": desc,
+                    "descricao_curta": desc[:32],
+                    "unidade": unidade,
+                    "referencia": referencia,
+                    "ncm": ncm,
+                    "preco": preco,
+                    "preco_formatado": formatar_preco(preco),
+                    "estoque": estoque
                 })
             if produtos:
                 break
-        except Exception as query_err:
-            # Tenta a proxima estrutura de tabela
+        except Exception:
             continue
 
     cur.close()
     con.close()
     return produtos
 
+def gerar_codigo_zpl(p):
+    """Gera script ZPL padrao para impressoras termicas de etiquetas."""
+    desc = remover_acentos(p.get("descricao", ""))[:28]
+    desc2 = remover_acentos(p.get("descricao", ""))[28:56]
+    preco = p.get("preco_formatado", "R$ 0,00")
+    ean = p.get("ean", p.get("codigo", ""))
+    cod = p.get("codigo", "")
+    un = p.get("unidade", "UN")
+
+    zpl = f"""^XA
+^PW400
+^LL240
+^PON
+^FO20,15^A0N,22,22^FD{desc}^FS
+"""
+    if desc2:
+        zpl += f"^FO20,38^A0N,20,20^FD{desc2}^FS\n"
+
+    zpl += f"""^FO20,65^A0N,18,18^FDCod: {cod} - Un: {un}^FS
+^FO20,90^BY2,2,60^BEN,60,Y,N^FD{ean}^FS
+^FO220,105^A0N,20,20^FDPRECO:^FS
+^FO220,130^A0N,32,32^FD{preco}^FS
+^XZ"""
+    return zpl
+
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({
-        "status": "online",
-        "servico": "Agente Local SoftCosmos",
-        "banco": DB_CONFIG['database']
-    })
+    return jsonify({"status": "online", "modulo": "Agente Conferencia SoftCosmos"})
 
 @app.route('/produto/<busca>', methods=['GET'])
 def api_buscar(busca):
-    resultado = buscar_produto(busca)
-    return jsonify(resultado)
+    res = buscar_produto(busca)
+    return jsonify(res)
 
-@app.route('/api/busca', methods=['POST'])
-def api_busca_post():
-    dados = request.get_json() or {}
-    termo = dados.get('termo', '')
-    if not termo:
-        return jsonify({"erro": "Termo de busca nao informado"}), 400
-    resultado = buscar_produto(termo)
-    return jsonify(resultado)
-
-def modo_terminal():
-    """Permite bipar com leitor de codigo de barras direto no console."""
-    print("=" * 60)
-    print("MODO DE CONSULTA RAPIDA NO TERMINAL ATIVO")
-    print("Bipe o codigo de barras ou digite o nome do produto e aperte ENTER.")
-    print("Pressione CTRL+C para sair.")
-    print("=" * 60)
-    
-    while True:
-        try:
-            termo = input("\n[Bipe ou digite o produto]: ").strip()
-            if not termo:
-                continue
-            resultados = buscar_produto(termo)
-            if isinstance(resultados, dict) and 'erro' in resultados:
-                print(f"-> {resultados['erro']}")
-            elif not resultados:
-                print(f"-> Nenhum produto encontrado para: '{termo}'")
-            else:
-                for p in resultados:
-                    print(f"-> COD: {p['codigo']} | EAN: {p['codigo_barras']}")
-                    print(f"   {p['descricao']}")
-                    print(f"   PRECO: R$ {p['preco']:.2f} | ESTOQUE: {p['estoque']} {p['unidade']}")
-                    print("-" * 40)
-        except KeyboardInterrupt:
-            print("\nEncerrando...")
-            break
+@app.route('/etiqueta/zpl/<busca>', methods=['GET'])
+def api_zpl(busca):
+    res = buscar_produto(busca)
+    if isinstance(res, list) and len(res) > 0:
+        zpl = gerar_codigo_zpl(res[0])
+        return Response(zpl, mimetype='text/plain')
+    return jsonify({"erro": "Produto nao encontrado"}), 404
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1] == '--cli':
-        modo_terminal()
-    else:
-        print("Iniciando Agente Local SoftCosmos na porta 3333...")
-        print("Acesse: http://localhost:3333/produto/7891234567890")
-        app.run(host='0.0.0.0', port=3333, debug=False)
+    print("Iniciando Agente de Conferencia na porta 3333...")
+    print("Exemplo de consulta: http://localhost:3333/produto/7891234567890")
+    print("Exemplo de ZPL:      http://localhost:3333/etiqueta/zpl/7891234567890")
+    app.run(host='0.0.0.0', port=3333, debug=False)
