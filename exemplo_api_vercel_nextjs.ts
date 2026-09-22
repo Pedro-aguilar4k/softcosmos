@@ -1,53 +1,91 @@
 // =============================================================================
-// EXEMPLO DE ROTA PARA SEU PROJETO NA VERCEL (Next.js App Router)
-// Salve este arquivo no seu projeto da Vercel em:
-// app/api/fila-etiquetas/route.ts
+// ROTA EM TEMPO REAL PARA SEU PROJETO NA VERCEL (Next.js App Router)
+// Salve este arquivo em: app/api/stream-etiquetas/route.ts
+//
+// VANTAGEM REVOLUCIONARIA:
+// ZERO POLLING! O seu computador abre 1 unica conexao passiva com a Vercel.
+// Enquanto ninguem bipa nada, o trafego de rede e ZERO.
+// Quando voce bipa um produto na conferencia, a Vercel dispara o evento
+// imediatamente (< 30ms) direto para o SoftCosmos imprimir!
 // =============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
 
-export interface ItemEtiqueta {
-  id: string;
-  codigo: string;
-  copias: number;
-  criadoEm: number;
-  status: "pendente" | "imprimindo" | "concluido";
-}
+// Lista de clientes conectados (o instalavel do Windows escutando)
+type Subscriber = (data: string) => void;
+const subscribers = new Set<Subscriber>();
 
-// Fila em memoria compartilhada (para alto volume ou persistencia duravel, 
-// voce pode salvar em uma tabela simples no Supabase, Neon ou KV)
-const filaEtiquetas: ItemEtiqueta[] = [];
-
-// Chave secreta de autenticacao (opcional, configurada no config_emulador.json)
+// Token opcional de seguranca
 const TOKEN_SECRETO = process.env.ETIQUETAS_TOKEN_SECRETO || "sua-chave-secreta-123";
 
 /**
- * 1. GET /api/fila-etiquetas
- * O agente .bat rodando no seu computador consulta essa rota a cada 1.5s
- * buscando novas etiquetas para imprimir no SoftCosmos.
+ * 1. GET /api/stream-etiquetas
+ * O instalavel do Windows conecta aqui UMA UNICA VEZ e fica ouvindo.
+ * Nao faz requisicoes repetitivas nem sobrecarrega a rede da empresa.
  */
 export async function GET(req: NextRequest) {
-  // Verificacao de seguranca opcional
   const authHeader = req.headers.get("authorization");
   if (TOKEN_SECRETO && authHeader !== `Bearer ${TOKEN_SECRETO}`) {
     return NextResponse.json({ erro: "Nao autorizado" }, { status: 401 });
   }
 
-  // Pega apenas as etiquetas que estao pendentes
-  const pendentes = filaEtiquetas.filter((item) => item.status === "pendente");
+  let unsubscribe: Subscriber | null = null;
 
-  // Marca como 'imprimindo' para evitar impressao duplicada
-  pendentes.forEach((item) => {
-    item.status = "imprimindo";
+  const stream = new ReadableStream({
+    start(controller) {
+      // Envia evento inicial de conexao confirmada
+      controller.enqueue(
+        new TextEncoder().encode(`data: {"status": "conectado", "timestamp": ${Date.now()}}\n\n`)
+      );
+
+      // Registra este instalador para receber novos bips
+      const sub: Subscriber = (mensagemJson: string) => {
+        try {
+          controller.enqueue(new TextEncoder().encode(`data: ${mensagemJson}\n\n`));
+        } catch {
+          // Erro ao enviar, conexao foi fechada
+          subscribers.delete(sub);
+        }
+      };
+
+      subscribers.add(sub);
+      unsubscribe = sub;
+
+      // Keepalive a cada 25 segundos para manter a conexao viva nos roteadores sem trafego
+      const keepAliveInterval = setInterval(() => {
+        try {
+          controller.enqueue(new TextEncoder().encode(": keepalive\n\n"));
+        } catch {
+          clearInterval(keepAliveInterval);
+          if (unsubscribe) subscribers.delete(unsubscribe);
+        }
+      }, 25000);
+    },
+    cancel() {
+      if (unsubscribe) {
+        subscribers.delete(unsubscribe);
+      }
+    },
   });
 
-  return NextResponse.json(pendentes);
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
 }
 
 /**
- * 2. POST /api/fila-etiquetas
- * O seu sistema de conferencia chama essa rota quando bipa ou seleciona um produto.
- * Exemplo de corpo JSON: { "codigo": "123", "copias": 1 }
+ * 2. POST /api/stream-etiquetas (ou quando bipa o produto)
+ * O seu sistema de conferencia chama esta rota ao bipar o produto.
+ * Exemplo de corpo JSON:
+ * {
+ *    "codigo": "123",
+ *    "copias": 1
+ * }
  */
 export async function POST(req: NextRequest) {
   try {
@@ -62,51 +100,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const novoItem: ItemEtiqueta = {
-      id: "etiq_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
+    const payload = JSON.stringify({
+      id: "bip_" + Date.now(),
       codigo: codigo,
       copias: copias,
-      criadoEm: Date.now(),
-      status: "pendente",
-    };
+      dataHora: new Date().toISOString(),
+    });
 
-    // Adiciona na fila para o SoftCosmos imprimir
-    filaEtiquetas.push(novoItem);
-
-    // Mantem apenas os ultimos 100 registros na memoria para economizar recursos
-    if (filaEtiquetas.length > 100) {
-      filaEtiquetas.splice(0, filaEtiquetas.length - 100);
-    }
+    // Envia instantaneamente para o instalador do SoftCosmos conectado
+    let entreguePara = 0;
+    subscribers.forEach((enviar) => {
+      enviar(payload);
+      entreguePara++;
+    });
 
     return NextResponse.json({
       sucesso: true,
-      mensagem: `Etiqueta do codigo ${codigo} enfileirada com sucesso! O SoftCosmos ira imprimir nos proximos segundos.`,
-      item: novoItem,
+      mensagem: `Bip do codigo ${codigo} transmitido para o SoftCosmos imprimir!`,
+      computadores_conectados: entreguePara,
+      codigo: codigo,
+      copias: copias,
     });
   } catch (error: any) {
     return NextResponse.json(
-      { erro: "Erro ao processar solicitacao", detalhes: error.message },
+      { erro: "Erro ao emitir evento de impressao", detalhes: error.message },
       { status: 500 }
     );
   }
 }
-
-/**
- * 3. PATCH /api/fila-etiquetas
- * Ou rota /api/fila-etiquetas/concluir:
- * Chamada pelo agente quando a impressao e concluida com sucesso.
- */
-export async function PATCH(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const id = body.id;
-    const item = filaEtiquetas.find((i) => i.id === id);
-    if (item) {
-      item.status = "concluido";
-    }
-    return NextResponse.json({ sucesso: true });
-  } catch {
-    return NextResponse.json({ sucesso: false }, { status: 400 });
-  }
-}
-

@@ -5,12 +5,29 @@ echo =========================================================================
 echo       AGENTE EMULADOR SOFTCOSMOS - DISPARO AUTOMATICO DE ETIQUETAS
 echo =========================================================================
 echo.
+
+:: Se o executavel compilado existir, roda diretamente sem precisar de Python
+if exist "%~dp0dist\AgenteSoftCosmos.exe" (
+    echo [MODO EXECUTAVEL STANDALONE DETECTADO]
+    echo Iniciando AgenteSoftCosmos.exe em segundo plano...
+    start "" "%~dp0dist\AgenteSoftCosmos.exe"
+    exit /b
+)
+
+if exist "%~dp0AgenteSoftCosmos.exe" (
+    echo [MODO EXECUTAVEL STANDALONE DETECTADO]
+    echo Iniciando AgenteSoftCosmos.exe em segundo plano...
+    start "" "%~dp0AgenteSoftCosmos.exe"
+    exit /b
+)
+
 echo Verificando instalacao do Python...
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERRO] Python nao foi encontrado no seu Windows.
-    echo Por favor, instale o Python 3 (marque a opcao "Add Python to PATH").
-    echo Baixe em: https://www.python.org/downloads/
+    echo [AVISO] Python nao foi encontrado no seu Windows.
+    echo Se voce compilou o executavel (.exe), copie o 'AgenteSoftCosmos.exe' para ca.
+    echo Caso contrario, instale o Python 3 marcando "Add Python to PATH":
+    echo https://www.python.org/downloads/
     pause
     exit /b
 )

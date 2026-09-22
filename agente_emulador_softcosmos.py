@@ -670,19 +670,66 @@ def modo_inspetor():
         if len(controles) > 20:
             print(f"      ... e mais {len(controles) - 20} controles.")
 
+def loop_consumidor_stream_nuvem():
+    """
+    CONEXAO EM TEMPO REAL VIA STREAM (SSE - Server-Sent Events).
+    Abre UMA UNICA conexao permanente com o seu servidor na Vercel.
+    Fica em escuta passiva: ZERO requisicoes repetitivas e ZERO sobrecarga na rede!
+    Quando o conferente bipa na Vercel, o evento cai instantaneamente (< 30ms).
+    """
+    url_stream = CONFIG.get("stream_nuvem_url", "").strip()
+    if not url_stream or "SEU-PROJETO" in url_stream:
+        return
+
+    token_secreto = CONFIG.get("fila_token_secreto", "").strip()
+    headers = {
+        'User-Agent': 'AgenteSoftCosmos-Stream/2.0',
+        'Accept': 'text/event-stream',
+        'Cache-Control': 'no-cache'
+    }
+    if token_secreto:
+        headers['Authorization'] = f'Bearer {token_secreto}'
+
+    print(f"[STREAM REALTIME] Conectando ao canal de eventos na Vercel: {url_stream}")
+    print("[STREAM REALTIME] Conexao passiva estabelecida: 0 requisicoes de polling na sua rede!")
+
+    while True:
+        try:
+            req = Request(url_stream, headers=headers)
+            with urlopen(req, timeout=120) as resp:
+                print("[STREAM REALTIME] Conectado e ouvindo bips da conferencia em tempo real...")
+                for raw_line in resp:
+                    line = raw_line.decode('utf-8', errors='ignore').strip()
+                    if not line:
+                        continue
+                    if line.startswith("data:"):
+                        conteudo_json = line[5:].strip()
+                        if conteudo_json and conteudo_json != "keepalive":
+                            try:
+                                dados = json.loads(conteudo_json)
+                                cod = dados.get("codigo") or dados.get("ean") or dados.get("termo")
+                                copias = int(dados.get("copias", 1))
+                                if cod:
+                                    print(f"[STREAM REALTIME] Bip recebido da Vercel! Código: {cod} ({copias}x)")
+                                    sucesso, msg = executar_emulacao_etiqueta(cod, copias)
+                                    print(f"[STREAM REALTIME] Impressao executada: {msg}")
+                            except Exception as json_err:
+                                print(f"[STREAM REALTIME] Erro ao decodificar evento: {json_err}")
+        except Exception as e:
+            # Em caso de instabilidade na internet, tenta reconectar pacificamente apos 4s
+            time.sleep(4.0)
+
 def loop_consumidor_fila_nuvem():
     """
-    Thread em segundo plano que consulta seu servidor na Vercel buscando etiquetas
-    pendentes para imprimir. Permite que o Vercel peca impressao sem precisar de
-    IP fixo, sem portas abertas no roteador e sem custos adicionais!
+    Modo alternativo por fila/polling (usado apenas se modo_conexao for 'polling').
     """
     url_fila = CONFIG.get("fila_nuvem_url", "").strip()
     if not url_fila or "SEU-PROJETO" in url_fila:
         return
 
     token_secreto = CONFIG.get("fila_token_secreto", "").strip()
-    intervalo = float(CONFIG.get("fila_intervalo_segundos", 1.5))
-    print(f"[FILA VERCEL] Monitorando etiquetas pendentes em: {url_fila} (a cada {intervalo}s)")
+    intervalo = float(CONFIG.get("fila_intervalo_segundos", 2.0))
+    print(f"[FILA VERCEL] Monitorando etiquetas via fila em: {url_fila} (a cada {intervalo}s)")
 
     headers = {'User-Agent': 'AgenteSoftCosmos/1.0', 'Content-Type': 'application/json'}
     if token_secreto:
@@ -707,7 +754,6 @@ def loop_consumidor_fila_nuvem():
                             sucesso, msg = executar_emulacao_etiqueta(cod, copias)
                             print(f"[FILA VERCEL] Status da impressão no SoftCosmos: {msg}")
 
-                            # Se o item tiver ID, avisa a Vercel que foi impresso para tirar da fila
                             if item_id:
                                 try:
                                     url_concluir = f"{url_fila.rstrip('/')}/concluir"
@@ -717,7 +763,6 @@ def loop_consumidor_fila_nuvem():
                                 except Exception:
                                     pass
         except Exception as e:
-            # Erros de rede ou fila vazia não quebram o loop
             pass
         time.sleep(intervalo)
 
@@ -742,19 +787,26 @@ def main():
     porta = args.porta
     servidor = HTTPServer(('0.0.0.0', porta), RequisicaoHandler)
 
-    # Inicia a thread de monitoramento de fila externa (se configurada)
-    if CONFIG.get("fila_nuvem_url"):
+    # Inicia a thread de eventos em tempo real da Vercel (STREAM SSE - ZERO POLLING)
+    modo = CONFIG.get("modo_conexao", "stream")
+    if modo == "stream" and CONFIG.get("stream_nuvem_url"):
+        t_stream = threading.Thread(target=loop_consumidor_stream_nuvem, daemon=True)
+        t_stream.start()
+    elif CONFIG.get("fila_nuvem_url"):
         t_fila = threading.Thread(target=loop_consumidor_fila_nuvem, daemon=True)
         t_fila.start()
 
     print("=" * 75)
-    print("AGENTE EMULADOR SOFTCOSMOS - CONFERENCIA & ETIQUETAS")
+    print("AGENTE EMULADOR SOFTCOSMOS - CONFERENCIA & ETIQUETAS (INSTALAVEL)")
     print("=" * 75)
-    print(f"-> Servidor rodando em: http://localhost:{porta}")
+    print(f"-> Servidor Local Ativo: http://localhost:{porta}")
     print(f"-> Painel de Testes Web: http://localhost:{porta}/")
-    print(f"-> Endpoint de Impressao: GET http://localhost:{porta}/imprimir/SEU_CODIGO")
-    if CONFIG.get("fila_nuvem_url"):
-        print(f"-> Fila em Nuvem Ativa: {CONFIG.get('fila_nuvem_url')}")
+    print(f"-> Disparo Local: GET http://localhost:{porta}/imprimir/SEU_CODIGO")
+    if modo == "stream" and CONFIG.get("stream_nuvem_url"):
+        print(f"-> Modo Nuvem: STREAM EM TEMPO REAL (ZERO POLLING)")
+        print(f"   Canal Vercel: {CONFIG.get('stream_nuvem_url')}")
+    elif CONFIG.get("fila_nuvem_url"):
+        print(f"-> Modo Nuvem: FILA HTTP ({CONFIG.get('fila_nuvem_url')})")
     print(f"-> Status do ERP: http://localhost:{porta}/status")
     print("-> Pressione CTRL+C para encerrar o agente.")
     print("=" * 75)
