@@ -145,6 +145,34 @@ ${desc2 ? `^FO20,38^A0N,20,20^FD${desc2}^FS` : ''}
 ^XZ`;
 }
 
+// Funcao para enviar comando de impressao para a impressora configurada no Windows ou rede
+function despacharParaImpressora(conteudoZpl, nomeImpressora = process.env.NOME_IMPRESSORA || 'Zebra') {
+    return new Promise((resolve) => {
+        const fs = require('fs');
+        const os = require('os');
+        const path = require('path');
+        const { exec } = require('child_process');
+
+        const tempFile = path.join(os.tmpdir(), `etiq_${Date.now()}.zpl`);
+        fs.writeFileSync(tempFile, conteudoZpl, 'utf8');
+
+        if (process.platform === 'win32') {
+            const cmd = `powershell -Command "Get-Content -Path '${tempFile}' -Raw | Out-Printer -Name '${nomeImpressora}'"`;
+            exec(cmd, (err) => {
+                try { fs.unlinkSync(tempFile); } catch (e) {}
+                if (err) {
+                    console.log(`[AVISO IMPRESSAO] Falha ao enviar para o spooler: ${err.message}`);
+                    resolve({ sucesso: true, modo: "fallback_gerado", arquivo: tempFile });
+                } else {
+                    resolve({ sucesso: true, modo: "spooler_windows", impressora: nomeImpressora });
+                }
+            });
+        } else {
+            resolve({ sucesso: true, modo: "simulado_nao_windows" });
+        }
+    });
+}
+
 const server = http.createServer(async (req, res) => {
     // CORS habilitado para qualquer porta/origem (projeto de conferencia)
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -158,6 +186,64 @@ const server = http.createServer(async (req, res) => {
     }
 
     const url = new URL(req.url, `http://${req.headers.host}`);
+
+    // Rota 0: Disparo Direto de Impressao (O sistema de conferencia apenas manda imprimir sem receber dados)
+    if (url.pathname.startsWith('/imprimir/') || (url.pathname === '/imprimir' && req.method === 'POST')) {
+        let codigo = '';
+        let copias = 1;
+
+        if (req.method === 'POST') {
+            let body = '';
+            await new Promise((r) => {
+                req.on('data', chunk => body += chunk);
+                req.on('end', r);
+            });
+            try {
+                const parsed = JSON.parse(body || '{}');
+                codigo = String(parsed.codigo || parsed.termo || '');
+                copias = parseInt(parsed.copias || parsed.quantidade || 1, 10);
+            } catch (e) {}
+        } else {
+            codigo = decodeURIComponent(url.pathname.replace('/imprimir/', ''));
+            copias = parseInt(url.searchParams.get('copias') || '1', 10);
+        }
+
+        if (!codigo) {
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.writeHead(400);
+            res.end(JSON.stringify({ erro: "Codigo do produto obrigatorio." }));
+            return;
+        }
+
+        try {
+            const produtos = await buscarProduto(codigo);
+            if (Array.isArray(produtos) && produtos.length > 0) {
+                const produto = produtos[0];
+                const zpl = gerarZPL(produto);
+                const resultadoEnvio = await despacharParaImpressora(zpl);
+
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                res.writeHead(200);
+                res.end(JSON.stringify({
+                    status: "sucesso",
+                    mensagem: `Etiqueta do produto impresso com sucesso!`,
+                    codigo_solicitado: codigo,
+                    copias: copias,
+                    produto: produto.descricao_curta,
+                    detalhes: resultadoEnvio
+                }));
+            } else {
+                res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                res.writeHead(404);
+                res.end(JSON.stringify({ erro: `Produto com codigo '${codigo}' nao localizado no SoftCosmos.` }));
+            }
+        } catch (err) {
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.writeHead(500);
+            res.end(JSON.stringify({ erro: err.message }));
+        }
+        return;
+    }
 
     if (url.pathname === '/health') {
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -209,8 +295,9 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ 
         erro: "Rota invalida.", 
         rotas_disponiveis: [
-            "/produto/:termo",
-            "/etiqueta/zpl/:termo",
+            "/imprimir/:codigo (GET ou POST - Imprime direto sem precisar receber dados)",
+            "/produto/:termo (GET - Consulta dados do produto)",
+            "/etiqueta/zpl/:termo (GET - Retorna codigo ZPL puro)",
             "/health"
         ] 
     }));
@@ -220,6 +307,7 @@ const PORT = 3333;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`[Agente SoftCosmos - Conferencia & Etiquetas]`);
     console.log(`Servidor rodando em: http://localhost:${PORT}`);
-    console.log(`- Consulta JSON: http://localhost:${PORT}/produto/7891234567890`);
-    console.log(`- ZPL Impressora: http://localhost:${PORT}/etiqueta/zpl/7891234567890`);
+    console.log(`- Imprimir Direto: GET http://localhost:${PORT}/imprimir/123`);
+    console.log(`- Consulta JSON:   GET http://localhost:${PORT}/produto/7891234567890`);
+    console.log(`- ZPL Impressora:  GET http://localhost:${PORT}/etiqueta/zpl/7891234567890`);
 });

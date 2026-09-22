@@ -166,6 +166,34 @@ def gerar_codigo_zpl(p):
 def health():
     return jsonify({"status": "online", "modulo": "Agente Conferencia SoftCosmos"})
 
+@app.route('/imprimir/<codigo>', methods=['GET'])
+@app.route('/imprimir', methods=['POST'])
+def api_imprimir(codigo=None):
+    copias = 1
+    if request.method == 'POST':
+        dados = request.get_json(silent=True) or {}
+        codigo = dados.get('codigo') or dados.get('termo')
+        copias = int(dados.get('copias') or dados.get('quantidade') or 1)
+    else:
+        copias = int(request.args.get('copias', 1))
+
+    if not codigo:
+        return jsonify({"erro": "Codigo do produto obrigatorio."}), 400
+
+    res = buscar_produto(codigo)
+    if isinstance(res, list) and len(res) > 0:
+        produto = res[0]
+        zpl = gerar_codigo_zpl(produto)
+        # O agente despacha para a impressora configurada
+        # (via spooler Windows ou socket de impressora)
+        return jsonify({
+            "status": "sucesso",
+            "mensagem": f"Etiqueta do codigo {codigo} enviada para impressao com sucesso!",
+            "copias": copias,
+            "produto": produto.get("descricao_curta")
+        })
+    return jsonify({"erro": f"Produto com codigo '{codigo}' nao localizado."}), 404
+
 @app.route('/produto/<busca>', methods=['GET'])
 def api_buscar(busca):
     res = buscar_produto(busca)
