@@ -52,11 +52,15 @@ BM_CLICK = 0x00F5
 VK_RETURN = 0x0D
 VK_TAB = 0x09
 VK_ESCAPE = 0x1B
+VK_INSERT = 0x2D
+VK_ADD = 0x6B
 VK_F2 = 0x71
 VK_F3 = 0x72
 VK_F4 = 0x73
 VK_F5 = 0x74
+VK_F7 = 0x76
 VK_F9 = 0x78
+VK_F12 = 0x7B
 SW_RESTORE = 9
 SW_SHOW = 5
 
@@ -66,16 +70,21 @@ CONFIG_PADRAO = {
     "janela_alvo_titulo": "Gerenciador de Etiquetas",
     "janela_alvo_classe": "TFEtiquetas",
     "janela_softcosmos_titulo": "SoftCosmos",
-    "limpar_com_novo_antes_de_imprimir": True, # Aciona 'Novo[F3]' antes de inserir o codigo para limpar o produto anterior
+    "fluxo_grid_adicionar_com_mais": True,     # Clica em '+' (Insert) no grid antes de inserir em Cód. Produto
+    "limpar_com_novo_apos_imprimir": True,      # Aciona 'Novo[F3]' apos imprimir para deixar a tela limpa
     "tecla_novo": "F3",                        # Atalho padrao do botao Novo no SoftCosmos
-    "tempo_espera_novo_ms": 150,               # Tempo para o SoftCosmos limpar o grid/formulario
-    "tempo_espera_busca_ms": 400,              # Tempo para o SoftCosmos consultar o produto no Firebird apos ENTER
-    "tempo_espera_impressao_ms": 300,          # Tempo antes de clicar em imprimir
-    "metodo_emulacao": "auto",                 # "auto", "win32_background" ou "teclado_focado"
+    "tempo_espera_inserir_ms": 200,            # Tempo apos apertar '+' para abrir a celula Cód. Produto
+    "tempo_espera_busca_ms": 450,              # Tempo para o SoftCosmos consultar o produto no Firebird apos ENTER
+    "tempo_espera_impressao_ms": 400,          # Tempo de conclusao da impressao
+    "tempo_espera_novo_ms": 200,               # Tempo para o SoftCosmos limpar o grid com Novo[F3]
+    "metodo_emulacao": "auto",                 # "auto", "teclado_focado" ou "win32_background"
     "restaurar_foco_apos_impressao": True,     # Nao rouba o foco do operador, devolve imediatamente
     "atalho_impressao": "ENTER",               # Tecla ou botao usado para imprimir no formulario
-    "fila_nuvem_url": "",                      # URL do seu servidor na nuvem (ex: https://meuservidor.com/api/fila-etiquetas)
-    "fila_intervalo_segundos": 2.0             # Intervalo de verificacao caso use servidor externo na nuvem
+    "modo_conexao": "stream",                  # "stream" (SSE em tempo real sem polling) ou "polling"
+    "stream_nuvem_url": "https://SEU-PROJETO.vercel.app/api/stream-etiquetas",
+    "fila_nuvem_url": "https://SEU-PROJETO.vercel.app/api/fila-etiquetas",
+    "fila_token_secreto": "sua-chave-secreta-123",
+    "fila_intervalo_segundos": 2.0
 }
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config_emulador.json")
@@ -230,11 +239,12 @@ def emular_tecla_enter(hwnd):
 
 def executar_emulacao_etiqueta(codigo_produto, copias=1):
     """
-    Executa a sequencia exata do SoftCosmos:
-    1. Localiza a janela do Gerenciador de Etiquetas
-    2. Informa o codigo do produto
-    3. Pressiona ENTER para puxar os dados
-    4. Aciona a impressao
+    Executa a sequencia exata do SoftCosmos solicitada:
+    1. Clica no botao '+' (ou tecla Insert) para adicionar nova linha no grid de itens
+    2. Adiciona o codigo no campo 'Cód. Produto' da tabela
+    3. Pressiona ENTER para o SoftCosmos carregar a descricao do produto
+    4. Clica no botao 'Imprimir Etiquetas'
+    5. Clica no botao 'Novo[F3]' para limpar a tela para a proxima impressao
     """
     codigo_produto = str(codigo_produto).strip()
     if not codigo_produto:
@@ -243,7 +253,7 @@ def executar_emulacao_etiqueta(codigo_produto, copias=1):
     if not IS_WINDOWS:
         # Simulacao em ambiente de teste/servidor Linux
         print(f"[SIMULACAO] Disparo recebido: Codigo={codigo_produto}, Copias={copias}")
-        return True, f"[SIMULACAO] Etiqueta do codigo '{codigo_produto}' processada com sucesso no SoftCosmos."
+        return True, f"[SIMULACAO] Sequencia [+] -> [Cod. Produto: {codigo_produto}] -> [ENTER] -> [Imprimir] -> [Novo F3] executada!"
 
     hwnd_janela, titulo_encontrado = localizar_janela_etiquetas()
     if not hwnd_janela:
@@ -259,34 +269,26 @@ def executar_emulacao_etiqueta(codigo_produto, copias=1):
     # Salva a janela que o usuario estava mexendo para restaurar depois
     hwnd_anterior = user32.GetForegroundWindow()
 
-    metodo = CONFIG.get("metodo_emulacao", "auto")
-    limpar_novo = CONFIG.get("limpar_com_novo_antes_de_imprimir", True)
-    tempo_novo = CONFIG.get("tempo_espera_novo_ms", 150) / 1000.0
-    tempo_busca = CONFIG.get("tempo_espera_busca_ms", 400) / 1000.0
-    tempo_imp = CONFIG.get("tempo_espera_impressao_ms", 300) / 1000.0
+    tempo_inserir = CONFIG.get("tempo_espera_inserir_ms", 200) / 1000.0
+    tempo_busca = CONFIG.get("tempo_espera_busca_ms", 450) / 1000.0
+    tempo_imp = CONFIG.get("tempo_espera_impressao_ms", 400) / 1000.0
+    tempo_novo = CONFIG.get("tempo_espera_novo_ms", 200) / 1000.0
 
     # -------------------------------------------------------------------------
     # LOCALIZACAO DOS CONTROLES DO FORMULARIO TFETIQUETAS DO SOFTCOSMOS
     # -------------------------------------------------------------------------
-    campo_edit = None
     botao_novo = None
     botao_imprimir = None
+    botao_inserir_mais = None
+    grid_itens = None
 
     # Procura botao Novo / Incluir (btnIncluirEtiqueta - 'Novo[F3]')
     for c in controles:
         titulo_lower = c["titulo"].lower()
         classe_lower = c["classe"].lower()
-        if any(k in titulo_lower for k in ["novo", "incluir", "f3"]) or "btnincluir" in classe_lower:
+        if any(k in titulo_lower for k in ["novo", "f3"]) or "btnincluir" in classe_lower:
             botao_novo = c["hwnd"]
             print(f"[INFO] Botao 'Novo' localizado: HWND={botao_novo} ({c['titulo']})")
-            break
-
-    # Procura controle de edicao onde se digita o codigo (TcxCustomInnerEdit, TEdit, Edit)
-    for c in controles:
-        classe_lower = c["classe"].lower()
-        if "edit" in classe_lower and c["habilitado"]:
-            campo_edit = c["hwnd"]
-            print(f"[INFO] Campo de Codigo localizado: HWND={campo_edit} ({c['classe']})")
             break
 
     # Procura botao Imprimir (BitBtn5 - 'Imprimir Etiquetas')
@@ -297,87 +299,71 @@ def executar_emulacao_etiqueta(codigo_produto, copias=1):
             print(f"[INFO] Botao 'Imprimir' localizado: HWND={botao_imprimir} ({c['titulo']})")
             break
 
-    # -------------------------------------------------------------------------
-    # ESTRATEGIA A: INJECAO DIRETA 100% EM SEGUNDO PLANO (WIN32 HWND)
-    # Nao move o mouse, nao rouba o foco e nao atrapalha o operador
-    # -------------------------------------------------------------------------
-    if campo_edit and metodo in ("auto", "win32_background"):
-        print(f"[INFO] Executando ciclo em segundo plano para o codigo: {codigo_produto}...")
-
-        # PASSO 1: LIMPAR PRODUTO ANTERIOR COM ACAO 'NOVO[F3]'
-        # Garante que ao bipar o proximo codigo, imprime APENAS ele e nao acumula com o anterior!
-        if limpar_novo:
-            print("[INFO] [PASSO 1/4] Acionando 'Novo[F3]' para limpar lista/produto anterior...")
-            if botao_novo:
-                user32.PostMessageW(botao_novo, BM_CLICK, 0, 0)
-            else:
-                user32.PostMessageW(hwnd_janela, WM_KEYDOWN, VK_F3, 0)
-                time.sleep(0.02)
-                user32.PostMessageW(hwnd_janela, WM_KEYUP, VK_F3, 0)
-            time.sleep(tempo_novo)
-
-        # PASSO 2: INJETAR O CODIGO DO PRODUTO ATUAL NO CAMPO
-        print(f"[INFO] [PASSO 2/4] Injetando codigo '{codigo_produto}' no campo do SoftCosmos...")
-        user32.SendMessageW(campo_edit, WM_SETTEXT, 0, str(codigo_produto))
-        time.sleep(0.05)
-
-        # PASSO 3: PRESSIONAR ENTER PARA O SOFTCOSMOS BUSCAR O PRODUTO NO FIREBIRD
-        print("[INFO] [PASSO 3/4] Enviando ENTER para o SoftCosmos carregar os dados...")
-        emular_tecla_enter(campo_edit)
-        time.sleep(tempo_busca)
-
-        # PASSO 4: DISPARAR IMPRESSAO DA ETIQUETA ATUAL
-        print("[INFO] [PASSO 4/4] Disparando impressao da etiqueta...")
-        if botao_imprimir:
-            user32.PostMessageW(botao_imprimir, BM_CLICK, 0, 0)
-        else:
-            emular_tecla_enter(campo_edit)
-
-        time.sleep(tempo_imp)
-        return True, f"Etiqueta do codigo '{codigo_produto}' impressa com sucesso (lista limpa antes do disparo)!"
+    # Procura a Grid grdItemsProd ou o DBNavigator / botao '+'
+    for c in controles:
+        classe_lower = c["classe"].lower()
+        titulo_lower = c["titulo"].lower()
+        if "grid" in classe_lower or "tcxgrid" in classe_lower:
+            grid_itens = c["hwnd"]
+            print(f"[INFO] Grid de Itens localizada: HWND={grid_itens} ({c['classe']})")
+        if "+" in c["titulo"] or "insert" in classe_lower or "nav" in classe_lower:
+            botao_inserir_mais = c["hwnd"]
 
     # -------------------------------------------------------------------------
-    # ESTRATEGIA B: EMULACAO COM FOCO RAPIDO E RESTAURACAO INSTANTANEA
-    # Se os componentes DevExpress do Delphi forem 'windowless' no Windows,
-    # aplicamos foco de 0.5s e DEVOLVEMOS IMEDIATAMENTE para a janela do operador!
+    # FLUXO EXATO: '+' -> 'Cód. Produto' -> ENTER -> 'Imprimir' -> 'Novo[F3]'
     # -------------------------------------------------------------------------
-    print("[INFO] Executando emulacao com foco rapido e restauracao automatica...")
+    print(f"[INFO] Executando ciclo de impressao do SoftCosmos para o codigo: {codigo_produto}...")
 
-    # Traz a janela do SoftCosmos brevemente
+    # Traz a janela do SoftCosmos brevemente para foco ativo
     user32.ShowWindow(hwnd_janela, SW_RESTORE)
     user32.SetForegroundWindow(hwnd_janela)
     time.sleep(0.08)
 
-    # PASSO 1: Limpar lista anterior com atalho F3 (Novo)
-    if limpar_novo:
-        print("[INFO] [PASSO 1/4] Pressionando F3 (Novo) para limpar produto anterior...")
-        enviar_tecla_virtual_sendinput(VK_F3)
-        time.sleep(tempo_novo)
+    # PASSO 1: CLICAR NO BOTAO '+' OU ENVIAR TECLA INSERT PARA ABRIR LINHA NA TABELA
+    print("[INFO] [PASSO 1/5] Clicando no botao '+' (ou acionando Insert no grid)...")
+    if botao_inserir_mais:
+        user32.PostMessageW(botao_inserir_mais, BM_CLICK, 0, 0)
+    else:
+        # Se for o TcxGrid, foca na grid e aciona a tecla INSERT (atalho nativo de inclusao de linha)
+        if grid_itens:
+            user32.SetFocus(grid_itens)
+        enviar_tecla_virtual_sendinput(VK_INSERT)
+    time.sleep(tempo_inserir)
 
-    # PASSO 2: Digita o codigo atual
-    print(f"[INFO] [PASSO 2/4] Digitando codigo '{codigo_produto}'...")
+    # PASSO 2: DIGITAR O CODIGO NO CAMPO 'Cód. Produto'
+    # Ao apertar '+', o cursor cai exatamente na coluna 'Cód. Produto'
+    print(f"[INFO] [PASSO 2/5] Adicionando o codigo '{codigo_produto}' em 'Cód. Produto'...")
     enviar_caracteres_teclado_sendinput(str(codigo_produto))
     time.sleep(0.05)
 
-    # PASSO 3: Envia ENTER para o SoftCosmos pesquisar
-    print("[INFO] [PASSO 3/4] Pressionando ENTER para o SoftCosmos buscar o produto...")
+    # PASSO 3: PRESSIONAR ENTER PARA CARREGAR O PRODUTO E FINALIZAR A LINHA
+    print("[INFO] [PASSO 3/5] Pressionando ENTER para o SoftCosmos validar o produto...")
     enviar_tecla_virtual_sendinput(VK_RETURN)
     time.sleep(tempo_busca)
 
-    # PASSO 4: Aciona a impressao
-    print("[INFO] [PASSO 4/4] Pressionando comando de impressao...")
+    # PASSO 4: CLICAR EM 'IMPRIMIR ETIQUETAS'
+    print("[INFO] [PASSO 4/5] Clicando no botao 'Imprimir Etiquetas'...")
     if botao_imprimir:
         user32.PostMessageW(botao_imprimir, BM_CLICK, 0, 0)
     else:
+        # Tenta acionar via teclado ou foco no botao imprimir
         enviar_tecla_virtual_sendinput(VK_RETURN)
     time.sleep(tempo_imp)
+
+    # PASSO 5: APERTAR BOTAO NOVO (Novo[F3]) PARA LIMPAR A TELA PARA A PROXIMA
+    print("[INFO] [PASSO 5/5] Apertando o botao 'Novo' (F3) para limpar a tela...")
+    if botao_novo:
+        user32.PostMessageW(botao_novo, BM_CLICK, 0, 0)
+    else:
+        enviar_tecla_virtual_sendinput(VK_F3)
+    time.sleep(tempo_novo)
 
     # RESTAURA IMEDIATAMENTE O FOCO PARA A TELA QUE O OPERADOR ESTAVA USANDO!
     if CONFIG.get("restaurar_foco_apos_impressao", True) and hwnd_anterior and hwnd_anterior != hwnd_janela:
         print("[INFO] Devolvendo foco instantaneamente para a janela anterior do operador...")
         user32.SetForegroundWindow(hwnd_anterior)
 
-    return True, f"Etiqueta do codigo '{codigo_produto}' impressa com sucesso (limpeza com Novo[F3] executada)!"
+    return True, f"Etiqueta do codigo '{codigo_produto}' processada: [+] -> [Cod. Produto] -> [Imprimir] -> [Novo]!"
 
 # =============================================================================
 # ENVIO DE TECLAS VIA NATIVE SENDINPUT (WINDOWS)

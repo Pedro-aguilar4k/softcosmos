@@ -39,7 +39,7 @@ O software alvo é o **`SoftCosmos.exe`**, desenvolvido em **Embarcadero Delphi 
 
 ## 3. O CICLO DE EXECUÇÃO EXATO POR BIPAGEM
 
-Sempre que uma solicitação de impressão chegar (ex: `codigo: "123"`, `copias: 1`), o executável DEVE seguir rigorosamente esta sequência de 6 passos:
+Sempre que uma solicitação de impressão chegar (ex: `codigo: "123"`, `copias: 1`), o executável DEVE seguir rigorosamente esta sequência do fluxo:
 
 ```
 [Bip Recebido da Vercel: "123"]
@@ -48,21 +48,24 @@ Sempre que uma solicitação de impressão chegar (ex: `codigo: "123"`, `copias:
 [Passo 1: Salvar HWND Atual] ──> Salva GetForegroundWindow() para devolver o foco depois
            │
            ▼
-[Passo 2: Ação NOVO[F3]]    ──> Envia clique no btnIncluirEtiqueta ou tecla F3
-                                (Garante LIMPAR a lista anterior: nunca imprime 2 produtos juntos!)
-           │ (Aguarda 150ms)
+[Passo 2: Clicar no botão '+']──> Envia clique no botão '+' da barra de navegação do grid ou tecla VK_INSERT (0x2D).
+                                  (Isso cria uma nova linha na tabela e coloca o cursor na célula 'Cód. Produto')
+           │ (Aguarda 200ms)
            ▼
-[Passo 3: Injetar Código]   ──> Escreve "123" no campo de edição
+[Passo 3: Digitar em 'Cód. Produto'] ──> Envia o código "123" diretamente na célula selecionada
            │ (Aguarda 50ms)
            ▼
-[Passo 4: Pressionar ENTER] ──> Envia VK_RETURN. O SoftCosmos faz a busca no Firebird
-           │ (Aguarda 400ms para carregar nome, preço e estoque na tela)
+[Passo 4: Pressionar ENTER]  ──> Envia VK_RETURN. O SoftCosmos valida e busca os dados do produto no Firebird
+           │ (Aguarda 450ms para carregar descrição, lote, quantidade)
            ▼
-[Passo 5: Disparar Impressão]──> Clica no botão BitBtn5 ('Imprimir Etiquetas') ou envia VK_RETURN
-           │ (Aguarda 300ms para enviar ao Spooler da impressora)
+[Passo 5: Clicar Imprimir]   ──> Clica no botão BitBtn5 ('Imprimir Etiquetas')
+           │ (Aguarda 400ms para enviar ao Spooler da impressora)
            ▼
-[Passo 6: Restaurar Foco]   ──> Se o foco mudou, chama SetForegroundWindow(hwnd_anterior)
-                                (O operador continua trabalhando normalmente sem perceber)
+[Passo 6: Apertar botão Novo]──> Clica no botão btnIncluirEtiqueta ('Novo[F3]') para limpar a tela para o próximo bip
+           │ (Aguarda 200ms)
+           ▼
+[Passo 7: Restaurar Foco]    ──> Se o foco mudou, chama SetForegroundWindow(hwnd_anterior)
+                                  (O operador continua trabalhando normalmente sem perceber)
 ```
 
 ---
