@@ -11,6 +11,7 @@
     "metodo_emulacao": "auto",
     "restaurar_foco_apos_impressao": true,
     "atalho_impressao": "ENTER",
-    "fila_nuvem_url": "",
-    "fila_intervalo_segundos": 2.0
+    "fila_nuvem_url": "https://SEU-PROJETO.vercel.app/api/fila-etiquetas",
+    "fila_token_secreto": "sua-chave-secreta-123",
+    "fila_intervalo_segundos": 1.5
 }

@@ -672,35 +672,52 @@ def modo_inspetor():
 
 def loop_consumidor_fila_nuvem():
     """
-    Thread em segundo plano que consulta um servidor na nuvem (se configurado)
-    buscando etiquetas pendentes para imprimir. Permite que servidores externos
-    (AWS, Vercel, VPS) pecam impressao sem precisar de IP fixo nem portas abertas!
+    Thread em segundo plano que consulta seu servidor na Vercel buscando etiquetas
+    pendentes para imprimir. Permite que o Vercel peca impressao sem precisar de
+    IP fixo, sem portas abertas no roteador e sem custos adicionais!
     """
     url_fila = CONFIG.get("fila_nuvem_url", "").strip()
-    if not url_fila:
+    if not url_fila or "SEU-PROJETO" in url_fila:
         return
 
-    intervalo = float(CONFIG.get("fila_intervalo_segundos", 2.0))
-    print(f"[FILA NUVEM] Monitorando etiquetas pendentes em: {url_fila} (a cada {intervalo}s)")
+    token_secreto = CONFIG.get("fila_token_secreto", "").strip()
+    intervalo = float(CONFIG.get("fila_intervalo_segundos", 1.5))
+    print(f"[FILA VERCEL] Monitorando etiquetas pendentes em: {url_fila} (a cada {intervalo}s)")
+
+    headers = {'User-Agent': 'AgenteSoftCosmos/1.0', 'Content-Type': 'application/json'}
+    if token_secreto:
+        headers['Authorization'] = f'Bearer {token_secreto}'
 
     while True:
         try:
-            req = Request(url_fila, headers={'User-Agent': 'AgenteSoftCosmos/1.0'})
+            req = Request(url_fila, headers=headers)
             with urlopen(req, timeout=5) as resp:
                 if resp.status == 200:
                     corpo = resp.read().decode('utf-8')
                     dados = json.loads(corpo)
-                    # Formato aceito: {"codigo": "123", "copias": 1} ou lista de itens
-                    itens = dados if isinstance(dados, list) else ([dados] if dados.get("codigo") else [])
+                    
+                    itens = dados if isinstance(dados, list) else ([dados] if isinstance(dados, dict) and dados.get("codigo") else [])
                     for item in itens:
+                        item_id = item.get("id")
                         cod = item.get("codigo") or item.get("ean") or item.get("termo")
                         copias = int(item.get("copias", 1))
+                        
                         if cod:
-                            print(f"[FILA NUVEM] Recebida solicitacao para codigo {cod} ({copias}x)...")
+                            print(f"[FILA VERCEL] Solicitação recebida da Vercel! Código: {cod} ({copias}x)")
                             sucesso, msg = executar_emulacao_etiqueta(cod, copias)
-                            print(f"[FILA NUVEM] Impressao concluida: {msg}")
+                            print(f"[FILA VERCEL] Status da impressão no SoftCosmos: {msg}")
+
+                            # Se o item tiver ID, avisa a Vercel que foi impresso para tirar da fila
+                            if item_id:
+                                try:
+                                    url_concluir = f"{url_fila.rstrip('/')}/concluir"
+                                    payload = json.dumps({"id": item_id, "sucesso": sucesso, "mensagem": msg}).encode('utf-8')
+                                    req_ack = Request(url_concluir, data=payload, headers=headers, method='POST')
+                                    urlopen(req_ack, timeout=5)
+                                except Exception:
+                                    pass
         except Exception as e:
-            # Silencioso se for erro temporario de conexao ou sem itens
+            # Erros de rede ou fila vazia não quebram o loop
             pass
         time.sleep(intervalo)
 
